@@ -24,8 +24,11 @@ def verifyTablesDNF(table_name):
 
     ltr = list(cur.execute(f"SELECT lhs,rhs FROM FunctDep WHERE table_name = '{table_name}'"))
 
+    
     for df in ltr:
-        
+
+        print(f"For {str(df)}: ")
+        okValue = True 
         (lhs,rhs) = (df[0].replace(" ",","),df[1])
         
         d = cur.execute(f"SELECT {lhs},{rhs} FROM {table_name}")
@@ -36,10 +39,59 @@ def verifyTablesDNF(table_name):
             
             if(row_lhs in list(dicoLtr.keys())):
                 if row_rhs != dicoLtr[row_lhs]:
-                    print("biiip:" + str(row))
+                    print(str(row) + f" | Tuple problématique! ")
+                    okValue = False
             else:
                 dicoLtr[row_lhs] = row_rhs
-                
+        if okValue:
+            print("DF respectée")
+
+# Section Logic Consequences
+
+def getAllLhs(dfArray):
+    lhs=[]
+    for i in dfArray:
+        lhs.append(i[0])
+    return lhs
+
+
+def fermeture(dfWanted,dfs):
+    NotUsed = dfs
+    NUComparator = []
+    fermeture = [dfWanted[0]]
+    while NotUsed != NUComparator:
+        NUComparator = NotUsed
+        for i in NotUsed:
+            if i[0] in fermeture:
+                NUComparator = NUComparator.remove(i)
+                fermeture.append(i[1])
+    return fermeture
+
+def verifyConsequences(table_name):
+
+    ltr = list(cur.execute(f"SELECT lhs,rhs FROM FunctDep WHERE table_name = '{table_name}'"))
+    
+    for i in range(len(ltr)):
+        dfWanted = ltr[i]
+        if i in range(1,len(ltr)):
+            dfs = ltr[:i] + ltr[i+1:]
+        elif(i == 0):
+            dfs = ltr[i+1:]
+        else:
+            dfs = ltr[:i]
+        ferm = fermeture(dfWanted,dfs)
+        if(dfWanted[1] in ferm):
+            print(str(dfWanted) + f"| Conséquence logique!")
+
+
+def verifyAllConsequences():
+    names = list(set(cur.execute(f"SELECT table_name FROM FunctDep")))
+
+    for name in names:
+        print(name[0])
+        verifyConsequences(name[0])
+
+    
 def listDF():
     listDf = list(cur.execute(f"SELECT lhs,rhs,table_name FROM FunctDep"))
     for df in listDf:
@@ -90,14 +142,14 @@ def addDF():
         
     print(list(cur.execute(f"insert into FunctDep(table_name,lhs,rhs) values ('{table[0]}','{lhs}','{rhs}')"))) #TODO changer fucntdep -> FuncDep
     
-    
     if input("continuer : y/n") == "y":
         addDF()
     #TODO push les changes 
 
 
 def verifyAllDFs():
-    names = list(cur.execute(f"SELECT table_name FROM FunctDep"))
+    
+    names = list(set(cur.execute(f"SELECT table_name FROM FunctDep")))
     for name in names:
         print(name[0])
         verifyTablesDNF(name[0])
@@ -133,6 +185,7 @@ while -1:
               ["ajouter une dépendance fonctionnelle", addDF],
               # TODO :["supprimer une dépendance fonctionnelle," deleteDF],
               ["Vérifier toutes les dépendances fonctionnelles", verifyAllDFs],
+              ["Csqces logique",verifyAllConsequences],
               ["Quitter",quit]
     
               ],)
