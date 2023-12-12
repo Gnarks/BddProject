@@ -39,7 +39,7 @@ def verifyTablesDNF(table_name):
             
             if(row_lhs in list(dicoLtr.keys())):
                 if row_rhs != dicoLtr[row_lhs]:
-                    print(str(row) + f" | Tuple problématique! ")
+                    print(str(row) + " | Tuple problématique! ")
                     okValue = False
             else:
                 dicoLtr[row_lhs] = row_rhs
@@ -81,11 +81,11 @@ def verifyConsequences(table_name):
             dfs = ltr[:i]
         ferm = fermeture(dfWanted,dfs)
         if(dfWanted[1] in ferm):
-            print(str(dfWanted) + f"| Conséquence logique!")
+            print(str(dfWanted) + "| Conséquence logique!")
 
 
 def verifyAllConsequences():
-    names = list(set(cur.execute(f"SELECT table_name FROM FunctDep")))
+    names = list(set(cur.execute("SELECT table_name FROM FunctDep")))
 
     for name in names:
         print(name[0])
@@ -93,7 +93,7 @@ def verifyAllConsequences():
 
     
 def listDF():
-    listDf = list(cur.execute(f"SELECT lhs,rhs,table_name FROM FunctDep"))
+    listDf = list(cur.execute("SELECT lhs,rhs,table_name FROM FunctDep"))
     for df in listDf:
         print(f"{df[0].replace(" ",",")} -> {df[1].replace(" ",",")} | dans la table : {df[2]}")
     input()
@@ -124,10 +124,11 @@ def addDF():
     table = tables[int(table)]
         
     print(f"Voici les attributs de la table {table[0]}:")
-    for att in list(map(lambda x: x[0], cur.execute(f'select * from {table[0]}').description)): print(att)
+    for att in list(map(lambda x: x[0], cur.execute(f'select * from {table[0]}').description)):
+        print(att)
     
-    print(f"Veuillez désormais choisir la main gauche de la dépendance fonctionnelle.")
-    print(f"Pour cela merci de séparer chaque attribut par \",\"")
+    print("Veuillez désormais choisir la main gauche de la dépendance fonctionnelle.")
+    print("Pour cela merci de séparer chaque attribut par \",\"")
     
     lhs = input()
     while notGoodInput(lhs,table[0]):
