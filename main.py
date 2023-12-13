@@ -22,7 +22,7 @@ def getLhs_RowAndRhs_Row(row):
 
 def verifyTablesDNF(table_name):
 
-    ltr = list(cur.execute(f"SELECT lhs,rhs FROM FunctDep WHERE table_name = '{table_name}'"))
+    ltr = list(cur.execute(f"SELECT lhs,rhs FROM FuncDep WHERE table_name = '{table_name}'"))
 
     
     for df in ltr:
@@ -69,7 +69,7 @@ def fermeture(dfWanted,dfs):
 
 def verifyConsequences(table_name):
 
-    ltr = list(cur.execute(f"SELECT lhs,rhs FROM FunctDep WHERE table_name = '{table_name}'"))
+    ltr = list(cur.execute(f"SELECT lhs,rhs FROM FuncDep WHERE table_name = '{table_name}'"))
     
     for i in range(len(ltr)):
         dfWanted = ltr[i]
@@ -85,22 +85,55 @@ def verifyConsequences(table_name):
 
 
 def verifyAllConsequences():
-    names = list(set(cur.execute("SELECT table_name FROM FunctDep")))
+    names = list(set(cur.execute("SELECT table_name FROM FuncDep")))
 
     for name in names:
         print(name[0])
         verifyConsequences(name[0])
 
-    
+#Section BCNF
+
+def mergeDFS(array):
+    dico ={}
+    for df in array:
+        if df[0] in list(dico.keys()):
+            dico[df[0]] = dico[df[0]]+ " " + df[1]
+        else:
+            dico[df[0]] = df[1]
+    newDfs = []
+    for key in list(dico.keys()):
+        newDfs.append((key + dico[key]))
+    return newDfs
+
+def isBCNF(array,table_name):
+    column = list(cur.execute(f"SELECT * FROM {table_name}").description)
+    BCNF = True
+    for tuple in array:
+        for i in range(len(column)):
+            if column[i][0] not in tuple:
+                print(f"{tuple} problématique")
+                BCNF = False
+    if BCNF:
+        print("BCNF IS RESPECTED")
+
+def testAllBCNF():
+    names = list(set(cur.execute("SELECT table_name FROM FuncDep")))
+    for name in names:
+        ltr = list(cur.execute(f"SELECT lhs,rhs FROM FuncDep WHERE table_name = '{name[0]}'"))
+        dfs = mergeDFS(ltr)
+        print(name[0])
+        isBCNF(dfs,name[0])
+
 def listDF():
-    listDf = list(cur.execute("SELECT lhs,rhs,table_name FROM FunctDep"))
+    listDf = list(cur.execute("SELECT lhs,rhs,table_name FROM FuncDep"))
     for df in listDf:
         print(f"{df[0].replace(" ",",")} -> {df[1].replace(" ",",")} | dans la table : {df[2]}")
     input()
     
 def notGoodInput(hand,table):
     print(hand.split(","))
-    if len(hand.split(",")) == 0: return True
+    if len(hand.split(",")) == 0:
+        return True
     print( list(map(lambda x: x[0], cur.execute(f'select * from {table}').description)))
     for h in hand.split(","):
         if h not in  list(map(lambda x: x[0], cur.execute(f'select * from {table}').description)):
@@ -141,7 +174,7 @@ def addDF():
     while notGoodInput(rhs,table[0]):
         rhs = input("Entrée invalide veuillez réessayer:")
         
-    print(list(cur.execute(f"insert into FunctDep(table_name,lhs,rhs) values ('{table[0]}','{lhs}','{rhs}')"))) #TODO changer fucntdep -> FuncDep
+    print(list(cur.execute(f"insert into FuncDep(table_name,lhs,rhs) values ('{table[0]}','{lhs}','{rhs}')"))) #TODO changer fucntdep -> FuncDep
     
     if input("continuer : y/n") == "y":
         addDF()
@@ -150,7 +183,7 @@ def addDF():
 
 def verifyAllDFs():
     
-    names = list(set(cur.execute(f"SELECT table_name FROM FunctDep")))
+    names = list(set(cur.execute(f"SELECT table_name FROM FuncDep")))
     for name in names:
         print(name[0])
         verifyTablesDNF(name[0])
@@ -187,6 +220,7 @@ while -1:
               # TODO :["supprimer une dépendance fonctionnelle," deleteDF],
               ["Vérifier toutes les dépendances fonctionnelles", verifyAllDFs],
               ["Csqces logique",verifyAllConsequences],
+              ["BCNF tests",testAllBCNF],
               ["Quitter",quit]
     
               ],)
