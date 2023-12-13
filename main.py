@@ -1,6 +1,6 @@
 import sqlite3
 import os
-
+#comment
 global cur,DbName,con
 DbName = "test.db"
 
