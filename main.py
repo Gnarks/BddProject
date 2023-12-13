@@ -1,7 +1,7 @@
 import sqlite3
 import os
 
-global cur,DbName
+global cur,DbName,con
 DbName = "test.db"
 
 def printChoices(choices):
@@ -131,19 +131,15 @@ def listDF():
     input()
     
 def notGoodInput(hand,table):
-    print(hand.split(","))
-    if len(hand.split(",")) == 0:
-        return True
-    print( list(map(lambda x: x[0], cur.execute(f'select * from {table}').description)))
+    if len(hand.split(",")) == 0: return True
     for h in hand.split(","):
         if h not in  list(map(lambda x: x[0], cur.execute(f'select * from {table}').description)):
-            print(f"{h} not in")
+            print(f"{h} not in {list(map(lambda x: x[0], cur.execute(f'select * from {table}').description))}")
             return True
     
     return False
     
 def addDF():
-    
     print("Voici les différentes tables :")
     tables = list(cur.execute("SELECT name FROM sqlite_master WHERE type='table'"))
     for i in range(len(tables)):
@@ -176,10 +172,9 @@ def addDF():
         
     print(list(cur.execute(f"insert into FuncDep(table_name,lhs,rhs) values ('{table[0]}','{lhs}','{rhs}')"))) #TODO changer fucntdep -> FuncDep
     
-    if input("continuer : y/n") == "y":
+    if input("continuer( y/n): ") == "y":
         addDF()
-    #TODO push les changes 
-
+    con.commit()
 
 def verifyAllDFs():
     
@@ -190,7 +185,7 @@ def verifyAllDFs():
 
 
 def printStartInterface():
-    global cur #TODO retirer
+    global cur,con 
     print("\n") 
     print("Bienvenue dans notre Système de gestion des DFs de bases de données.")
 
@@ -216,11 +211,10 @@ printStartInterface()
 while -1:
     printChoices([[f"Se connecter à une autre base de donnée que \"{DbName}\"", connectDb],
               ["Lister les dépendances fonctionnelles", listDF], 
-              ["ajouter une dépendance fonctionnelle", addDF],
+              ["Ajouter une dépendance fonctionnelle", addDF],
               # TODO :["supprimer une dépendance fonctionnelle," deleteDF],
               ["Vérifier toutes les dépendances fonctionnelles", verifyAllDFs],
-              ["Csqces logique",verifyAllConsequences],
-              ["BCNF tests",testAllBCNF],
+              ["Vérifier conséquences logique",verifyAllConsequences],
               ["Quitter",quit]
     
               ],)
