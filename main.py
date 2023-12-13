@@ -131,7 +131,8 @@ def listDF():
     input()
     
 def notGoodInput(hand,table):
-    if len(hand.split(",")) == 0: return True
+    if len(hand.split(",")) == 0:
+        return True
     for h in hand.split(","):
         if h not in  list(map(lambda x: x[0], cur.execute(f'select * from {table}').description)):
             print(f"{h} not in {list(map(lambda x: x[0], cur.execute(f'select * from {table}').description))}")
@@ -163,14 +164,14 @@ def addDF():
     while notGoodInput(lhs,table[0]):
         lhs = input("Entrée invalide veuillez réessayer:")
         
-    print(f"Veuillez désormais répéter le processus pour la main droite de la dépendance fonctionnelle.")
-    print(f"De nouveau merci de séparer chaque attribut par \",\"")
+    print("Veuillez désormais répéter le processus pour la main droite de la dépendance fonctionnelle.")
+    print("De nouveau merci de séparer chaque attribut par \",\"")
     
     rhs = input()
     while notGoodInput(rhs,table[0]):
         rhs = input("Entrée invalide veuillez réessayer:")
         
-    print(list(cur.execute(f"insert into FuncDep(table_name,lhs,rhs) values ('{table[0]}','{lhs}','{rhs}')"))) #TODO changer fucntdep -> FuncDep
+    print(list(cur.execute(f"insert into FuncDep(table_name,lhs,rhs) values ('{table[0]}','{lhs}','{rhs}')"))) 
     
     if input("continuer( y/n): ") == "y":
         addDF()
@@ -178,7 +179,7 @@ def addDF():
 
 def verifyAllDFs():
     
-    names = list(set(cur.execute(f"SELECT table_name FROM FuncDep")))
+    names = list(set(cur.execute("SELECT table_name FROM FuncDep")))
     for name in names:
         print(name[0])
         verifyTablesDNF(name[0])
@@ -215,7 +216,6 @@ while -1:
               # TODO :["supprimer une dépendance fonctionnelle," deleteDF],
               ["Vérifier toutes les dépendances fonctionnelles", verifyAllDFs],
               ["Vérifier conséquences logique",verifyAllConsequences],
+              ["Verifier BCNF",testAllBCNF],
               ["Quitter",quit]
-    
               ],)
-# TODO changer le nom de functttttDep -> FuncDep
