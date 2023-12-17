@@ -96,7 +96,21 @@ def verifyAllConsequences():
 
 
 #Section BCNF
+def stringContain(isIn, contain):
+    listIsIn = isIn.split(" ")
+    for element in listIsIn:
+        if element not in contain:
+            return False
+    return True
 
+def addNotIn(toAdd, addedlhs, addedrhs):
+    listToAdd = toAdd.split(" ")
+    toReturn = addedrhs
+    for element in listToAdd:
+        if element not in addedlhs and element not in addedrhs:
+            toReturn = toReturn + " " + element
+    return toReturn
+    
 def mergeDFS(array):
     dico ={}
     for df in array:
@@ -106,15 +120,27 @@ def mergeDFS(array):
             dico[df[0]] = df[1]
     newDfs = []
     for key in list(dico.keys()):
-        newDfs.append((key + dico[key]))
+        newDfs.append((key , dico[key]))
     return newDfs
 
+def trueDependences(array):
+    Tdfs = []
+    for df in array:
+        Tdfs.append(df)
+        for dfComp in array:
+            if df!=dfComp and stringContain(dfComp[0],str(df)):
+                toAdd = (df[0], addNotIn(dfComp[1],df[0],df[1]))
+                Tdfs[-1] = toAdd
+    return Tdfs
+
+
+
 def isBCNF(array,table_name):
-    column = list(cur.execute(f"SELECT * FROM {table_name}").description)
+    column = list(set(cur.execute(f"SELECT * FROM {table_name}").description))
     BCNF = True
     for tuple in array:
-        for i in range(len(column)):
-            if column[i][0] not in tuple:
+        for element in column:
+            if element[0] not in str(tuple):
                 print(f"{tuple} problématique")
                 BCNF = False
     if BCNF:
@@ -125,6 +151,7 @@ def testAllBCNF():
     for name in names:
         ltr = list(cur.execute(f"SELECT lhs,rhs FROM FuncDep WHERE table_name = '{name[0]}'"))
         dfs = mergeDFS(ltr)
+        dfs = trueDependences(dfs)
         print(name[0])
         isBCNF(dfs,name[0])
 
