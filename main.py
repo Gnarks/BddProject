@@ -71,6 +71,7 @@ def fermeture(dfWanted,dfs):
 def verifyConsequences(table_name):
 
     ltr = list(cur.execute(f"SELECT lhs,rhs FROM FuncDep WHERE table_name = '{table_name}'"))
+    listConsequences = []
     for i in range(len(ltr)):
         dfWanted = ltr[i]
         if i in range(1,len(ltr)):
@@ -81,15 +82,18 @@ def verifyConsequences(table_name):
             dfs = ltr[:i]
         ferm = fermeture(dfWanted,dfs)
         if(dfWanted[1] in ferm):
-            print(str(dfWanted) + "| Conséquence logique!")
-
+            listConsequences.append(dfWanted)
+    return listConsequences
 
 def verifyAllConsequences():
     names = list(set(cur.execute("SELECT table_name FROM FuncDep")))
-
+    csq = []
     for name in names:
         print(name[0])
-        verifyConsequences(name[0])
+        csq = verifyConsequences(name[0])
+        for element in csq:
+            print(str(element) + "| Conséquence logique!")
+
 
 #Section BCNF
 
@@ -187,7 +191,8 @@ def getAllKeys():
 def getKey(tableName):
     ltr = list(cur.execute(f"SELECT lhs,rhs FROM FuncDep WHERE table_name = '{tableName}'"))
     #TODO retirer les conséquences logiques de ltr.
-    
+    ltr.remove(verifyConsequences(tableName))
+
     attributes = list(map(lambda x: x[0], cur.execute(f'select * from {tableName}').description))
     useless = []
     necessary = []
