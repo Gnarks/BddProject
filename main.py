@@ -214,7 +214,7 @@ def getKey(tableName):
 
     necessaryComputed = computeAtts(necessary,ltr)
     if len(necessary) != 0 and len([x for x in attributes if x not in necessaryComputed]) == 0:
-        return ",".join(necessary)
+        return [",".join(necessary)]
     
     subArr = []
     for i in chain.from_iterable(combinations(middleGround, r) for r in range(len(middleGround)+1)):
