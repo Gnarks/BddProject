@@ -187,11 +187,15 @@ def getAllKeys():
         print(f"For {name}: ")
         print(getKey(name[0]))
 
+def removeAll(array,toDelete):
+    for element in toDelete:
+        if element in array:
+            array.remove(element)
 
 def getKey(tableName):
     ltr = list(cur.execute(f"SELECT lhs,rhs FROM FuncDep WHERE table_name = '{tableName}'"))
     #TODO retirer les conséquences logiques de ltr.
-    ltr.remove(verifyConsequences(tableName))
+    removeAll(ltr,verifyConsequences(tableName))
 
     attributes = list(map(lambda x: x[0], cur.execute(f'select * from {tableName}').description))
     useless = []
