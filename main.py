@@ -57,7 +57,7 @@ def getAllLhs(dfArray):
 
 
 def fermeture(dfWanted,dfs):
-    NotUsed = dfs
+    NotUsed = dfs.copy()
     NUComparator = []
     fermeture = [dfWanted[0]]
     while NotUsed != NUComparator:
@@ -172,42 +172,73 @@ def notGoodInput(hand,table):
     return False
     
 def addDF():
+    global cur
     print("Voici les différentes tables :")
     tables = list(cur.execute("SELECT name FROM sqlite_master WHERE type='table'"))
+    print("0) retourner au menu principal")
     for i in range(len(tables)):
-        print(f"{i}) {tables[i]}")
+        if tables[i][0] != "FuncDep":
+            print(f"{i+1}) {tables[i]}")
     
     table = input()
     
-    while not table.isdigit() or int(table) >= len(tables):
+    if table == "0":
+        os.system( "clear" if os.name == "posix"  else "cls")
+        return
+    
+    while not table.isdigit() or int(table) >= len(tables) +1:
         table = input("invalid entry please retry:")
+        if table == "0":
+            os.system( "clear" if os.name == "posix"  else "cls")
+            return
         
-    table = tables[int(table)]
-        
+    table = tables[int(table) -1]
+    
     print(f"Voici les attributs de la table {table[0]}:")
-    for att in list(map(lambda x: x[0], cur.execute(f'select * from {table[0]}').description)):
-        print(att)
+    for att in list(map(lambda x: x[0], cur.execute(f'select * from {table[0]}').description)):print(att)
     
     print("Veuillez désormais choisir la main gauche de la dépendance fonctionnelle.")
-    print("Pour cela merci de séparer chaque attribut par un espace :\" \"")
+    print("Pour cela merci de séparer chaque attribut par un espace :\" \".")
+    print("Entrez \"0\" pour retourner au menu principal")
     
     lhs = input()
+    if lhs == "0":
+        os.system( "clear" if os.name == "posix"  else "cls")
+        return
+    
     while notGoodInput(lhs,table[0]):
         lhs = input("Entrée invalide veuillez réessayer:")
+        if lhs =="0":
+            os.system( "clear" if os.name == "posix"  else "cls")
+            return
         
     print("Veuillez désormais répéter le processus pour la main droite de la dépendance fonctionnelle.")
-    print("Cependant veuillez entrer un attribut unique")
+    print("Cependant veuillez entrer un attribut unique.")
+    
+    print("Entrez \"0\" pour retourner au menu principal")
     
     rhs = input()
-    while notGoodInput(rhs,table[0]) or len(rhs.split(" ")) > 1:
-        rhs = input("Entrée invalide veuillez réessayer:") # TODO v"rifier que l'ajout n'est pas une conséquence logique.
-        
-    cur.execute(f"insert into FuncDep(table_name,lhs,rhs) values ('{table[0]}','{lhs}','{rhs}')")
+    if rhs == "0":
+        os.system( "clear" if os.name == "posix"  else "cls")
+        return
     
-    if input("continuer( y/n): ") == "y":
-        con.commit()
-        addDF()
+    while notGoodInput(rhs,table[0]) or len(rhs.split(" ")) > 1:
+        rhs = input("Entrée invalide veuillez réessayer:")
+        if rhs == "0":
+            os.system( "clear" if os.name == "posix"  else "cls")
+            return
+        # TODO v"rifier que l'ajout n'est pas une conséquence logique.
+    
+    
+        
+    if rhs in fermeture((rhs,lhs),list(cur.execute(f"SELECT lhs,rhs FROM FuncDep WHERE table_name = '{table[0]}'"))) and input("c'est une conséquence logique, voulez vous tout de même l'ajouter ? (y/n): ") != "y":
+        return
+    
+    cur.execute(f"insert into FuncDep(table_name,lhs,rhs) values ('{table[0]}','{lhs}','{rhs}')")    
     con.commit()
+
+    if input("continuer (y/n): ") == "y":
+        addDF()
 
 def getAllKeys():
     names = list(set(cur.execute("select table_name from FuncDep")))
@@ -217,7 +248,6 @@ def getAllKeys():
 
 def getKey(tableName):
     ltr = list(cur.execute(f"SELECT lhs,rhs FROM FuncDep WHERE table_name = '{tableName}'"))
-    
     logicCsq = verifyConsequences(tableName)
     ltr = [x for x in ltr if x not in logicCsq]
 
@@ -293,7 +323,6 @@ def printStartInterface():
     print("Bienvenue dans notre Système de gestion des DFs de bases de données.")
 
     print("Veuillez fournir le nom de la table sur laquelle vous voulez travailler.")
-    #connectDb()
     con = sqlite3.connect("DB/test.db")
     cur = con.cursor()
     
@@ -316,9 +345,9 @@ while -1:
               ["Lister les dépendances fonctionnelles", listDF], 
               ["Ajouter une dépendance fonctionnelle", addDF],
               # TODO :["supprimer une dépendance fonctionnelle," deleteDF],
-              ["Vérifier toutes les dépendances fonctionnelles", verifyAllDFs],
-              ["Vérifier conséquences logique",verifyAllConsequences],
-              ["Verifier BCNF",testAllBCNF],
-              ["Afficher les clés de chaque table",getAllKeys],
+              ["Vérifier les dépendances fonctionnelles de chaque table", verifyAllDFs],
+              ["Vérifier les conséquences logiques de chaque table",verifyAllConsequences],
+              ["Verifier si chaque table est en BCNF",testAllBCNF],
+              ["Afficher les clés de chaque table (ayant des DFs)",getAllKeys],
               ["Quitter",quit]
               ],)
