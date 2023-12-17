@@ -1,5 +1,6 @@
 import sqlite3
 import os
+from itertools import chain,combinations
 #comment
 global cur,DbName,con
 DbName = "test.db"
@@ -70,7 +71,6 @@ def fermeture(dfWanted,dfs):
 def verifyConsequences(table_name):
 
     ltr = list(cur.execute(f"SELECT lhs,rhs FROM FuncDep WHERE table_name = '{table_name}'"))
-    
     for i in range(len(ltr)):
         dfWanted = ltr[i]
         if i in range(1,len(ltr)):
@@ -177,8 +177,74 @@ def addDF():
         addDF()
     con.commit()
 
-def verifyAllDFs():
+def getAllKeys():
+    names = list(set(cur.execute("select table_name from FuncDep")))
+    for name in names:
+        print(f"For {name}: ")
+        print(getKey(name[0]))
+
+
+def getKey(tableName):
+    ltr = list(cur.execute(f"SELECT lhs,rhs FROM FuncDep WHERE table_name = '{tableName}'"))
+    #TODO retirer les conséquences logiques de ltr.
     
+    attributes = list(map(lambda x: x[0], cur.execute(f'select * from {tableName}').description))
+    useless = []
+    necessary = []
+    middleGround = []
+    for att in attributes:
+        rightCount,leftCount = 0,0
+        
+        for df in ltr:
+            if att == df[0]:
+                rightCount+=1
+            elif att == df[1]:
+                leftCount+=1
+        if rightCount > 0 and leftCount==0:
+            necessary.append(att)
+        elif rightCount > 0 and leftCount > 0:
+            middleGround.append(att)
+        else:
+            useless.append(att)     
+
+    if len(necessary) != 0 and "".join(attributes) in computeAtts(necessary,ltr): #TODO changer sens et mettre ==    
+        return ",".join(necessary)
+    
+    subArr = []
+    for i in chain.from_iterable(combinations(middleGround, r) for r in range(len(middleGround)+1)):
+        subArr.append(list(i) + necessary)
+        
+    final = []
+    i = 0
+    while(len(subArr) != 0):
+        i+=1
+        actual = subArr[0]
+        subArr.remove(subArr[0])
+        actualComputed = computeAtts(actual,ltr)
+    
+        if actualComputed == attributes:
+            final.append(actual)
+            for y in subArr:
+                if actual in y:
+                    subArr.remove(y)
+                    
+    return final
+            
+    
+def computeAtts(attributes,dfScheme):
+    total = "".join(attributes)
+    asChanged = True
+    while asChanged:
+        asChanged= False
+        for df in dfScheme:
+            if df[0][0] in total:
+                asChanged = True
+                total += f"{df[1][0]}"
+                dfScheme.remove(df)
+    return total
+
+
+def verifyAllDFs():
     names = list(set(cur.execute("SELECT table_name FROM FuncDep")))
     for name in names:
         print(name[0])
@@ -194,7 +260,6 @@ def printStartInterface():
     #connectDb()
     con = sqlite3.connect("DB/test.db")
     cur = con.cursor()
-
     
 def connectDb():
     global cur, DbName
@@ -205,7 +270,8 @@ def connectDb():
         DbName = input("nom de la Db (dans le répertoire DB):")
         
     con= sqlite3.connect(f"DB/{DbName}")
-    cur = con.cursor()
+    cur = con.cursor()        
+        
         
 printStartInterface()
 
@@ -217,5 +283,6 @@ while -1:
               ["Vérifier toutes les dépendances fonctionnelles", verifyAllDFs],
               ["Vérifier conséquences logique",verifyAllConsequences],
               ["Verifier BCNF",testAllBCNF],
+              ["Afficher les clés de chaque table",getAllKeys],
               ["Quitter",quit]
               ],)
