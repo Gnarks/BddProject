@@ -1,7 +1,7 @@
 import sqlite3
 import os
 from itertools import chain,combinations
-#comment
+
 global cur,DbName,con
 DbName = "test.db"
 
@@ -135,9 +135,9 @@ def listDF():
     input()
     
 def notGoodInput(hand,table):
-    if len(hand.split(",")) == 0:
+    if len(hand.split(" ")) == 0:
         return True
-    for h in hand.split(","):
+    for h in hand.split(" "):
         if h not in  list(map(lambda x: x[0], cur.execute(f'select * from {table}').description)):
             print(f"{h} not in {list(map(lambda x: x[0], cur.execute(f'select * from {table}').description))}")
             return True
@@ -162,22 +162,23 @@ def addDF():
         print(att)
     
     print("Veuillez désormais choisir la main gauche de la dépendance fonctionnelle.")
-    print("Pour cela merci de séparer chaque attribut par \",\"")
+    print("Pour cela merci de séparer chaque attribut par un espace :\" \"")
     
     lhs = input()
     while notGoodInput(lhs,table[0]):
         lhs = input("Entrée invalide veuillez réessayer:")
         
     print("Veuillez désormais répéter le processus pour la main droite de la dépendance fonctionnelle.")
-    print("De nouveau merci de séparer chaque attribut par \",\"")
+    print("Cependant veuillez entrer un attribut unique")
     
     rhs = input()
-    while notGoodInput(rhs,table[0]):
-        rhs = input("Entrée invalide veuillez réessayer:")
+    while notGoodInput(rhs,table[0]) or len(rhs.split(" ")) > 1:
+        rhs = input("Entrée invalide veuillez réessayer:") # TODO v"rifier que l'ajout n'est pas une conséquence logique.
         
-    print(list(cur.execute(f"insert into FuncDep(table_name,lhs,rhs) values ('{table[0]}','{lhs}','{rhs}')"))) 
+    cur.execute(f"insert into FuncDep(table_name,lhs,rhs) values ('{table[0]}','{lhs}','{rhs}')")
     
     if input("continuer( y/n): ") == "y":
+        con.commit()
         addDF()
     con.commit()
 
@@ -187,15 +188,11 @@ def getAllKeys():
         print(f"For {name}: ")
         print(getKey(name[0]))
 
-def removeAll(array,toDelete):
-    for element in toDelete:
-        if element in array:
-            array.remove(element)
-
 def getKey(tableName):
     ltr = list(cur.execute(f"SELECT lhs,rhs FROM FuncDep WHERE table_name = '{tableName}'"))
-    #TODO retirer les conséquences logiques de ltr.
-    removeAll(ltr,verifyConsequences(tableName))
+    
+    logicCsq = verifyConsequences(tableName)
+    ltr = [x for x in ltr if x not in logicCsq]
 
     attributes = list(map(lambda x: x[0], cur.execute(f'select * from {tableName}').description))
     useless = []
@@ -203,25 +200,25 @@ def getKey(tableName):
     middleGround = []
     for att in attributes:
         rightCount,leftCount = 0,0
-        
         for df in ltr:
-            if att == df[0]:
+            if att in df[0]:
                 rightCount+=1
-            elif att == df[1]:
+            elif att in df[1]:
                 leftCount+=1
-        if rightCount > 0 and leftCount==0:
+        if rightCount >= 0 and leftCount==0:
             necessary.append(att)
         elif rightCount > 0 and leftCount > 0:
             middleGround.append(att)
         else:
             useless.append(att)     
 
-    if len(necessary) != 0 and "".join(attributes) in computeAtts(necessary,ltr): #TODO changer sens et mettre ==    
+    necessaryComputed = computeAtts(necessary,ltr)
+    if len(necessary) != 0 and len([x for x in attributes if x not in necessaryComputed]) == 0:
         return ",".join(necessary)
     
     subArr = []
     for i in chain.from_iterable(combinations(middleGround, r) for r in range(len(middleGround)+1)):
-        subArr.append(list(i) + necessary)
+        subArr.append(necessary + list(i))
         
     final = []
     i = 0
@@ -231,25 +228,28 @@ def getKey(tableName):
         subArr.remove(subArr[0])
         actualComputed = computeAtts(actual,ltr)
     
-        if actualComputed == attributes:
+        if len([x for x in attributes if x not in actualComputed]) == 0:
             final.append(actual)
             for y in subArr:
-                if actual in y:
+                if len([x for x in actual if x not in y]) == 0:
                     subArr.remove(y)
-                    
+    
+    for j in range(len(final)):
+        final[j] = ",".join(final[j])
     return final
             
     
 def computeAtts(attributes,dfScheme):
-    total = "".join(attributes)
-    asChanged = True
+    total = attributes.copy()
+    dfSchemeFunc = dfScheme.copy() 
+    asChanged = True    
     while asChanged:
         asChanged= False
-        for df in dfScheme:
-            if df[0][0] in total:
+        for df in dfSchemeFunc:
+            if len([x for x in df[0].split(" ") if x not in total]) ==0:
                 asChanged = True
-                total += f"{df[1][0]}"
-                dfScheme.remove(df)
+                total.append(df[1])
+                dfSchemeFunc.remove(df)
     return total
 
 
