@@ -1,6 +1,7 @@
 import sqlite3
 import os
-#comment
+from itertools import chain,combinations
+
 global cur,DbName,con
 DbName = "test.db"
 
@@ -70,7 +71,7 @@ def fermeture(dfWanted,dfs):
 def verifyConsequences(table_name):
 
     ltr = list(cur.execute(f"SELECT lhs,rhs FROM FuncDep WHERE table_name = '{table_name}'"))
-    
+    listConsequences = []
     for i in range(len(ltr)):
         dfWanted = ltr[i]
         if i in range(1,len(ltr)):
@@ -81,15 +82,18 @@ def verifyConsequences(table_name):
             dfs = ltr[:i]
         ferm = fermeture(dfWanted,dfs)
         if(dfWanted[1] in ferm):
-            print(str(dfWanted) + "| Conséquence logique!")
-
+            listConsequences.append(dfWanted)
+    return listConsequences
 
 def verifyAllConsequences():
     names = list(set(cur.execute("SELECT table_name FROM FuncDep")))
-
+    csq = []
     for name in names:
         print(name[0])
-        verifyConsequences(name[0])
+        csq = verifyConsequences(name[0])
+        for element in csq:
+            print(str(element) + "| Conséquence logique!")
+
 
 #Section BCNF
 def stringContain(isIn, contain):
@@ -158,9 +162,9 @@ def listDF():
     input()
     
 def notGoodInput(hand,table):
-    if len(hand.split(",")) == 0:
+    if len(hand.split(" ")) == 0:
         return True
-    for h in hand.split(","):
+    for h in hand.split(" "):
         if h not in  list(map(lambda x: x[0], cur.execute(f'select * from {table}').description)):
             print(f"{h} not in {list(map(lambda x: x[0], cur.execute(f'select * from {table}').description))}")
             return True
@@ -185,27 +189,98 @@ def addDF():
         print(att)
     
     print("Veuillez désormais choisir la main gauche de la dépendance fonctionnelle.")
-    print("Pour cela merci de séparer chaque attribut par \",\"")
+    print("Pour cela merci de séparer chaque attribut par un espace :\" \"")
     
     lhs = input()
     while notGoodInput(lhs,table[0]):
         lhs = input("Entrée invalide veuillez réessayer:")
         
     print("Veuillez désormais répéter le processus pour la main droite de la dépendance fonctionnelle.")
-    print("De nouveau merci de séparer chaque attribut par \",\"")
+    print("Cependant veuillez entrer un attribut unique")
     
     rhs = input()
-    while notGoodInput(rhs,table[0]):
-        rhs = input("Entrée invalide veuillez réessayer:")
+    while notGoodInput(rhs,table[0]) or len(rhs.split(" ")) > 1:
+        rhs = input("Entrée invalide veuillez réessayer:") # TODO v"rifier que l'ajout n'est pas une conséquence logique.
         
-    print(list(cur.execute(f"insert into FuncDep(table_name,lhs,rhs) values ('{table[0]}','{lhs}','{rhs}')"))) 
+    cur.execute(f"insert into FuncDep(table_name,lhs,rhs) values ('{table[0]}','{lhs}','{rhs}')")
     
     if input("continuer( y/n): ") == "y":
+        con.commit()
         addDF()
     con.commit()
 
-def verifyAllDFs():
+def getAllKeys():
+    names = list(set(cur.execute("select table_name from FuncDep")))
+    for name in names:
+        print(f"For {name}: ")
+        print(getKey(name[0]))
+
+def getKey(tableName):
+    ltr = list(cur.execute(f"SELECT lhs,rhs FROM FuncDep WHERE table_name = '{tableName}'"))
     
+    logicCsq = verifyConsequences(tableName)
+    ltr = [x for x in ltr if x not in logicCsq]
+
+    attributes = list(map(lambda x: x[0], cur.execute(f'select * from {tableName}').description))
+    useless = []
+    necessary = []
+    middleGround = []
+    for att in attributes:
+        rightCount,leftCount = 0,0
+        for df in ltr:
+            if att in df[0]:
+                rightCount+=1
+            elif att in df[1]:
+                leftCount+=1
+        if rightCount >= 0 and leftCount==0:
+            necessary.append(att)
+        elif rightCount > 0 and leftCount > 0:
+            middleGround.append(att)
+        else:
+            useless.append(att)     
+
+    necessaryComputed = computeAtts(necessary,ltr)
+    if len(necessary) != 0 and len([x for x in attributes if x not in necessaryComputed]) == 0:
+        return [",".join(necessary)]
+    
+    subArr = []
+    for i in chain.from_iterable(combinations(middleGround, r) for r in range(len(middleGround)+1)):
+        subArr.append(necessary + list(i))
+        
+    final = []
+    i = 0
+    while(len(subArr) != 0):
+        i+=1
+        actual = subArr[0]
+        subArr.remove(subArr[0])
+        actualComputed = computeAtts(actual,ltr)
+    
+        if len([x for x in attributes if x not in actualComputed]) == 0:
+            final.append(actual)
+            for y in subArr:
+                if len([x for x in actual if x not in y]) == 0:
+                    subArr.remove(y)
+    
+    for j in range(len(final)):
+        final[j] = ",".join(final[j])
+    return final
+            
+    
+def computeAtts(attributes,dfScheme):
+    total = attributes.copy()
+    dfSchemeFunc = dfScheme.copy() 
+    asChanged = True    
+    while asChanged:
+        asChanged= False
+        for df in dfSchemeFunc:
+            if len([x for x in df[0].split(" ") if x not in total]) ==0:
+                asChanged = True
+                total.append(df[1])
+                dfSchemeFunc.remove(df)
+    return total
+
+
+def verifyAllDFs():
     names = list(set(cur.execute("SELECT table_name FROM FuncDep")))
     for name in names:
         print(name[0])
@@ -221,7 +296,6 @@ def printStartInterface():
     #connectDb()
     con = sqlite3.connect("DB/test.db")
     cur = con.cursor()
-
     
 def connectDb():
     global cur, DbName
@@ -232,7 +306,8 @@ def connectDb():
         DbName = input("nom de la Db (dans le répertoire DB):")
         
     con= sqlite3.connect(f"DB/{DbName}")
-    cur = con.cursor()
+    cur = con.cursor()        
+        
         
 printStartInterface()
 
@@ -244,5 +319,6 @@ while -1:
               ["Vérifier toutes les dépendances fonctionnelles", verifyAllDFs],
               ["Vérifier conséquences logique",verifyAllConsequences],
               ["Verifier BCNF",testAllBCNF],
+              ["Afficher les clés de chaque table",getAllKeys],
               ["Quitter",quit]
               ],)
