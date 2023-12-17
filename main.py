@@ -3,7 +3,9 @@ import os
 from itertools import chain,combinations
 
 global cur,DbName,con
-DbName = "test.db"
+#DbName = "test.db" #TODO supprimer avant de rendre
+DbName=""
+
 
 def printChoices(choices):
     for i in range(len(choices)):
@@ -212,7 +214,7 @@ def addDF():
             os.system( "clear" if os.name == "posix"  else "cls")
             return
         
-    print("Veuillez désormais répéter le processus pour la main droite de la dépendance fonctionnelle.")
+    print("Veuillez désormais répéter ùle processus pour la main droite de la dépendance fonctionnelle.")
     print("Cependant veuillez entrer un attribut unique.")
     
     print("Entrez \"0\" pour retourner au menu principal")
@@ -226,9 +228,7 @@ def addDF():
         rhs = input("Entrée invalide veuillez réessayer:")
         if rhs == "0":
             os.system( "clear" if os.name == "posix"  else "cls")
-            return
-        # TODO v"rifier que l'ajout n'est pas une conséquence logique.
-    
+            return    
     
         
     if rhs in fermeture((rhs,lhs),list(cur.execute(f"SELECT lhs,rhs FROM FuncDep WHERE table_name = '{table[0]}'"))) and input("c'est une conséquence logique, voulez vous tout de même l'ajouter ? (y/n): ") != "y":
@@ -318,24 +318,31 @@ def verifyAllDFs():
 
 
 def printStartInterface():
-    global cur,con 
+    global cur,con  # retirer avant de rendre
+    if DbName !="":
+        con = sqlite3.connect(f"DB/{DbName}")
+        cur = con.cursor()
+        return
+    
     print("\n") 
     print("Bienvenue dans notre Système de gestion des DFs de bases de données.")
-
     print("Veuillez fournir le nom de la table sur laquelle vous voulez travailler.")
-    con = sqlite3.connect("DB/test.db")
-    cur = con.cursor()
+    connectDb()
     
 def connectDb():
-    global cur, DbName
+    global cur, DbName,con
     DbName = input("nom de la Db (dans le répertoire DB):")
 
-    while not os.path.isfile(f"DB/{DbName}"):
-        print(f"Le fichier \"DB/{DbName}\" n'existe pas veuillez réessayer.")
-        DbName = input("nom de la Db (dans le répertoire DB):")
+    #while not os.path.isfile(f"DB/{DbName}"):
+    #    print(f"Le fichier \"DB/{DbName}\" n'existe pas veuillez réessayer.")
+    DbName = input("nom de la Db (dans le répertoire DB):")
         
     con= sqlite3.connect(f"DB/{DbName}")
-    cur = con.cursor()        
+    cur = con.cursor()
+    
+    if ("FuncDep",) not in list(cur.execute("SELECT name FROM sqlite_master WHERE type='table'")):
+        print("Il fut remarqué que FuncDep n'existe pas pour cette Database nous l'ajoutons")
+        cur.execute("create table FuncDep ('table_name','lhs','rhs')")
         
         
 printStartInterface()
