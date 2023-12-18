@@ -271,10 +271,32 @@ def deleteDF():
             os.system( "clear" if os.name == "posix"  else "cls")
             return
         
-    table = tables[int(table) -1]
+    table = tables[int(table) -1][0]
+
+    print(table)
 
     ltr = list(cur.execute(f"SELECT lhs,rhs FROM FuncDep WHERE table_name = '{table}'"))
     print("Voici les différentes dépendances fonctionnelles :")
+    print("0) retourner au menu principal")
+    for i in range(len(ltr)):
+        print(f"{i+1}) {ltr[i][0].replace(" ",",")} --> {ltr[i][1]}")
+    
+    df = input()
+    if df == "0":
+        os.system( "clear" if os.name == "posix"  else "cls")
+        return
+    while not df.isdigit() or int(df) >= len(ltr) +1:
+        df = input("invalid entry please retry:")
+        if df == "0":
+            os.system( "clear" if os.name == "posix"  else "cls")
+            return
+
+    df = ltr[int(df) -1]
+    cur.execute(f"delete from FuncDep where table_name = '{table}' and  lhs = '{df[0]}' and rhs = '{df[1]}'")
+    con.commit()
+    
+    if input("continuer (y/n): ") == "y":
+        deleteDF()
     
     
 
@@ -373,7 +395,7 @@ while -1:
     printChoices([[f"Se connecter à une autre base de donnée que \"{DbName}\"", connectDb],
               ["Lister les dépendances fonctionnelles", listDF], 
               ["Ajouter une dépendance fonctionnelle", addDF],
-              # TODO :["supprimer une dépendance fonctionnelle", deleteDF],
+              ["supprimer une dépendance fonctionnelle", deleteDF],
               # TODO : ["modifier une dépendance fonctionnelle", modifyDF],
               ["Vérifier les dépendances fonctionnelles de chaque table", verifyAllDFs],
               ["Vérifier les conséquences logiques de chaque table",verifyAllConsequences],
