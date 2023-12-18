@@ -191,6 +191,7 @@ def addDF():
     print("Voici les différentes tables :")
     tables = list(cur.execute("SELECT name FROM sqlite_master WHERE type='table'"))
     print("0) retourner au menu principal")
+    tables = [x for x in tables if x[0] != "FuncDep"]
     for i in range(len(tables)):
         if tables[i][0] != "FuncDep":
             print(f"{i+1}) {tables[i]}")
@@ -207,10 +208,10 @@ def addDF():
             os.system( "clear" if os.name == "posix"  else "cls")
             return
         
-    table = tables[int(table) -1]
+    table = tables[int(table) -1][0]
     
-    print(f"Voici les attributs de la table {table[0]}:")
-    for att in list(map(lambda x: x[0], cur.execute(f'select * from {table[0]}').description)):print(att)
+    print(f"Voici les attributs de la table {table}:")
+    for att in list(map(lambda x: x[0], cur.execute(f'select * from {table}').description)):print(att)
     
     print("Veuillez désormais choisir la main gauche de la dépendance fonctionnelle.")
     print("Pour cela merci de séparer chaque attribut par un espace :\" \".")
@@ -221,7 +222,7 @@ def addDF():
         os.system( "clear" if os.name == "posix"  else "cls")
         return
     
-    while notGoodInput(lhs,table[0]):
+    while notGoodInput(lhs,table):
         lhs = input("Entrée invalide veuillez réessayer:")
         if lhs =="0":
             os.system( "clear" if os.name == "posix"  else "cls")
@@ -237,17 +238,13 @@ def addDF():
         os.system( "clear" if os.name == "posix"  else "cls")
         return
     
-    while notGoodInput(rhs,table[0]) or len(rhs.split(" ")) > 1:
+    while notGoodInput(rhs,table) or len(rhs.split(" ")) > 1:
         rhs = input("Entrée invalide veuillez réessayer:")
         if rhs == "0":
             os.system( "clear" if os.name == "posix"  else "cls")
             return    
     
-        
-    if rhs in fermeture((rhs,lhs),list(cur.execute(f"SELECT lhs,rhs FROM FuncDep WHERE table_name = '{table[0]}'"))) and input("c'est une conséquence logique, voulez vous tout de même l'ajouter ? (y/n): ") != "y":
-        return
-    
-    cur.execute(f"insert into FuncDep(table_name,lhs,rhs) values ('{table[0]}','{lhs}','{rhs}')")    
+    cur.execute(f"insert into FuncDep(table_name,lhs,rhs) values ('{table}','{lhs}','{rhs}')")    
     con.commit()
 
     if input("continuer (y/n): ") == "y":
@@ -257,6 +254,7 @@ def deleteDF():
     print("Voici les différentes tables :")
     tables = list(cur.execute("SELECT name FROM sqlite_master WHERE type='table'"))
     print("0) retourner au menu principal")
+    tables = [x for x in tables if x[0] != "FuncDep"]
     for i in range(len(tables)):
         if tables[i][0] != "FuncDep":
             print(f"{i+1}) {tables[i]}")
@@ -272,8 +270,6 @@ def deleteDF():
             return
         
     table = tables[int(table) -1][0]
-
-    print(table)
 
     ltr = list(cur.execute(f"SELECT lhs,rhs FROM FuncDep WHERE table_name = '{table}'"))
     print("Voici les différentes dépendances fonctionnelles :")
@@ -299,6 +295,87 @@ def deleteDF():
         deleteDF()
     
     
+    
+def modifyDF():
+    
+    print("Voici les différentes tables :")
+    tables = list(cur.execute("SELECT name FROM sqlite_master WHERE type='table'"))
+    print("0) retourner au menu principal")
+    tables = [x for x in tables if x[0] != "FuncDep"]
+    for i in range(len(tables)):
+        if tables[i][0] != "FuncDep":
+            print(f"{i+1}) {tables[i]}")
+    
+    table = input()
+    if table == "0":
+        os.system( "clear" if os.name == "posix"  else "cls")
+        return
+    while not table.isdigit() or int(table) >= len(tables) +1:
+        table = input("invalid entry please retry:")
+        if table == "0":
+            os.system( "clear" if os.name == "posix"  else "cls")
+            return
+        
+    table = tables[int(table) -1][0]
+    
+    ltr = list(cur.execute(f"SELECT lhs,rhs FROM FuncDep WHERE table_name = '{table}'"))
+    print("Voici les différentes dépendances fonctionnelles :")
+    print("0) retourner au menu principal")
+    for i in range(len(ltr)):
+        print(f"{i+1}) {ltr[i][0].replace(" ",",")} --> {ltr[i][1]}")
+    
+    df = input()
+    if df == "0":
+        os.system( "clear" if os.name == "posix"  else "cls")
+        return
+    while not df.isdigit() or int(df) >= len(ltr) +1:
+        df = input("invalid entry please retry:")
+        if df == "0":
+            os.system( "clear" if os.name == "posix"  else "cls")
+            return
+
+    df = ltr[int(df) -1]
+    print(f"Voici les attributs de la table {table}")
+    for att in list(map(lambda x: x[0], cur.execute(f'select * from {table}').description)):print(att)
+
+    
+    print("Veuillez désormais choisir la main gauche de la dépendance fonctionnelle.")
+    print("Pour cela merci de séparer chaque attribut par un espace :\" \".")
+    print("Entrez \"0\" pour retourner au menu principal")
+    
+    lhs = input()
+    if lhs == "0":
+        os.system( "clear" if os.name == "posix"  else "cls")
+        return
+    
+    while notGoodInput(lhs,table):
+        lhs = input("Entrée invalide veuillez réessayer:")
+        if lhs =="0":
+            os.system( "clear" if os.name == "posix"  else "cls")
+            return
+        
+    print("Veuillez désormais répéter ùle processus pour la main droite de la dépendance fonctionnelle.")
+    print("Cependant veuillez entrer un attribut unique.")
+    
+    print("Entrez \"0\" pour retourner au menu principal")
+    
+    rhs = input()
+    if rhs == "0":
+        os.system( "clear" if os.name == "posix"  else "cls")
+        return
+    
+    while notGoodInput(rhs,table) or len(rhs.split(" ")) > 1:
+        rhs = input("Entrée invalide veuillez réessayer:")
+        if rhs == "0":
+            os.system( "clear" if os.name == "posix"  else "cls")
+            return    
+    
+    cur.execute(f"update FuncDep set lhs='{lhs}',rhs='{rhs}' where table_name ='{table}' and  lhs = '{df[0]}' and rhs = '{df[1]}'")
+    con.commit()
+    
+    if input("continuer (y/n): ") == "y":
+        deleteDF()
+
 
 def getAllKeys():
     names = list(set(cur.execute("select table_name from FuncDep")))
@@ -396,7 +473,7 @@ while -1:
               ["Lister les dépendances fonctionnelles", listDF], 
               ["Ajouter une dépendance fonctionnelle", addDF],
               ["supprimer une dépendance fonctionnelle", deleteDF],
-              # TODO : ["modifier une dépendance fonctionnelle", modifyDF],
+              ["modifier une dépendance fonctionnelle", modifyDF],
               ["Vérifier les dépendances fonctionnelles de chaque table", verifyAllDFs],
               ["Vérifier les conséquences logiques de chaque table",verifyAllConsequences],
               ["Verifier si chaque table est en BCNF",testAllBCNF],
