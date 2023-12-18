@@ -3,8 +3,8 @@ import os
 from itertools import chain,combinations
 
 global cur,DbName,con
-#DbName = "test.db" #TODO supprimer avant de rendre
-DbName=""
+DbName = "test.db" #TODO supprimer avant de rendre
+#DbName="" remettre ça
 
 
 def printChoices(choices):
@@ -57,6 +57,18 @@ def getAllLhs(dfArray):
         lhs.append(i[0])
     return lhs
 
+def computeAtts(attributes,dfScheme):
+    total = attributes.copy()
+    dfSchemeFunc = dfScheme.copy() 
+    asChanged = True    
+    while asChanged:
+        asChanged= False
+        for df in dfSchemeFunc:
+            if len([x for x in df[0].split(" ") if x not in total]) ==0:
+                asChanged = True
+                total.append(df[1])
+                dfSchemeFunc.remove(df)
+    return total
 
 def fermeture(dfWanted,dfs):
     NotUsed = dfs.copy()
@@ -124,6 +136,10 @@ def mergeDFS(array):
     for key in list(dico.keys()):
         newDfs.append((key , dico[key]))
     return newDfs
+# tab = []
+# for lhs in ltr:
+#   tab.append([lhs,compute(ltr]))
+
 
 def trueDependences(array):
     Tdfs = []
@@ -134,8 +150,6 @@ def trueDependences(array):
                 toAdd = (df[0], addNotIn(dfComp[1],df[0],df[1]))
                 Tdfs[-1] = toAdd
     return Tdfs
-
-
 
 def isBCNF(array,table_name):
     column = list(set(cur.execute(f"SELECT * FROM {table_name}").description))
@@ -174,7 +188,6 @@ def notGoodInput(hand,table):
     return False
     
 def addDF():
-    global cur
     print("Voici les différentes tables :")
     tables = list(cur.execute("SELECT name FROM sqlite_master WHERE type='table'"))
     print("0) retourner au menu principal")
@@ -239,14 +252,39 @@ def addDF():
 
     if input("continuer (y/n): ") == "y":
         addDF()
+        
+def deleteDF():
+    print("Voici les différentes tables :")
+    tables = list(cur.execute("SELECT name FROM sqlite_master WHERE type='table'"))
+    print("0) retourner au menu principal")
+    for i in range(len(tables)):
+        if tables[i][0] != "FuncDep":
+            print(f"{i+1}) {tables[i]}")
+    
+    table = input()
+    if table == "0":
+        os.system( "clear" if os.name == "posix"  else "cls")
+        return
+    while not table.isdigit() or int(table) >= len(tables) +1:
+        table = input("invalid entry please retry:")
+        if table == "0":
+            os.system( "clear" if os.name == "posix"  else "cls")
+            return
+        
+    table = tables[int(table) -1]
+
+    ltr = list(cur.execute(f"SELECT lhs,rhs FROM FuncDep WHERE table_name = '{table}'"))
+    print("Voici les différentes dépendances fonctionnelles :")
+    
+    
 
 def getAllKeys():
     names = list(set(cur.execute("select table_name from FuncDep")))
     for name in names:
         print(f"For {name}: ")
-        print(getKey(name[0]))
+        print(getKeys(name[0]))
 
-def getKey(tableName):
+def getKeys(tableName):
     ltr = list(cur.execute(f"SELECT lhs,rhs FROM FuncDep WHERE table_name = '{tableName}'"))
     logicCsq = verifyConsequences(tableName)
     ltr = [x for x in ltr if x not in logicCsq]
@@ -294,21 +332,6 @@ def getKey(tableName):
     for j in range(len(final)):
         final[j] = ",".join(final[j])
     return final
-            
-    
-def computeAtts(attributes,dfScheme):
-    total = attributes.copy()
-    dfSchemeFunc = dfScheme.copy() 
-    asChanged = True    
-    while asChanged:
-        asChanged= False
-        for df in dfSchemeFunc:
-            if len([x for x in df[0].split(" ") if x not in total]) ==0:
-                asChanged = True
-                total.append(df[1])
-                dfSchemeFunc.remove(df)
-    return total
-
 
 def verifyAllDFs():
     names = list(set(cur.execute("SELECT table_name FROM FuncDep")))
@@ -333,15 +356,14 @@ def connectDb():
     global cur, DbName,con
     DbName = input("nom de la Db (dans le répertoire DB):")
 
-    #while not os.path.isfile(f"DB/{DbName}"):
-    #    print(f"Le fichier \"DB/{DbName}\" n'existe pas veuillez réessayer.")
-    DbName = input("nom de la Db (dans le répertoire DB):")
+    while not os.path.isfile(f"DB/{DbName}"):
+        print(f"Le fichier \"DB/{DbName}\" n'existe pas veuillez réessayer.")
         
     con= sqlite3.connect(f"DB/{DbName}")
     cur = con.cursor()
     
     if ("FuncDep",) not in list(cur.execute("SELECT name FROM sqlite_master WHERE type='table'")):
-        print("Il fut remarqué que FuncDep n'existe pas pour cette Database nous l'ajoutons")
+        print("Il fut remarqué que FuncDep n'existe pas pour cette Database nous l'ajoutons.")
         cur.execute("create table FuncDep ('table_name','lhs','rhs')")
         
         
@@ -351,7 +373,8 @@ while -1:
     printChoices([[f"Se connecter à une autre base de donnée que \"{DbName}\"", connectDb],
               ["Lister les dépendances fonctionnelles", listDF], 
               ["Ajouter une dépendance fonctionnelle", addDF],
-              # TODO :["supprimer une dépendance fonctionnelle," deleteDF],
+              # TODO :["supprimer une dépendance fonctionnelle", deleteDF],
+              # TODO : ["modifier une dépendance fonctionnelle", modifyDF],
               ["Vérifier les dépendances fonctionnelles de chaque table", verifyAllDFs],
               ["Vérifier les conséquences logiques de chaque table",verifyAllConsequences],
               ["Verifier si chaque table est en BCNF",testAllBCNF],
