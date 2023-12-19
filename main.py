@@ -72,14 +72,16 @@ def computeAtts(attributes,dfScheme):
 
 def fermeture(dfWanted,dfs):
     NotUsed = dfs.copy()
+    print(NotUsed)
     NUComparator = []
-    fermeture = [dfWanted[0]]
+    fermeture = [dfWanted[0].split(" ")]
+    print(fermeture)
     while NotUsed != NUComparator:
-        NUComparator = NotUsed
+        NUComparator= NotUsed.copy()
         for i in NotUsed:
-            if i[0] in fermeture:
-                NUComparator = NUComparator.remove(i)
-                fermeture.append(i[1])
+            if stringContain(i[0], fermeture):
+                NUComparator = [x for x in NUComparator if x not in fermeture]
+                fermeture.append(i[1].split(" "))
     return fermeture
 
 def verifyConsequences(table_name):
@@ -124,6 +126,8 @@ def addNotIn(toAdd, addedlhs, addedrhs):
         if element not in addedlhs and element not in addedrhs:
             toReturn = toReturn + " " + element
     return toReturn
+
+
     
 def mergeDFS(array):
     dico ={}
@@ -136,41 +140,95 @@ def mergeDFS(array):
     for key in list(dico.keys()):
         newDfs.append((key , dico[key]))
     return newDfs
-# tab = []
-# for lhs in ltr:
-#   tab.append([lhs,compute(ltr]))
 
 
 def trueDependences(array):
     Tdfs = []
     for df in array:
         Tdfs.append(df)
-        for dfComp in array:
-            if df!=dfComp and stringContain(dfComp[0],str(df)):
-                toAdd = (df[0], addNotIn(dfComp[1],df[0],df[1]))
-                Tdfs[-1] = toAdd
+        asChanged = True
+        while asChanged:
+            asChanged = False
+            for dfComp in array:
+                if (df!=dfComp) and (stringContain(dfComp[0],str(Tdfs[-1]))):
+                    toAdd = (Tdfs[-1][0], addNotIn(dfComp[1],Tdfs[-1][0],Tdfs[-1][1]))
+                    if toAdd != Tdfs[-1]:
+                        Tdfs[-1] = toAdd
+                        asChanged= True
     return Tdfs
 
 def isBCNF(array,table_name):
     column = list(set(cur.execute(f"SELECT * FROM {table_name}").description))
     BCNF = True
+    problematics = []
     for tuple in array:
         for element in column:
             if element[0] not in str(tuple):
-                print(f"{tuple} problématique")
+                problematics.append(tuple)
                 BCNF = False
-    if BCNF:
-        print("BCNF IS RESPECTED")
+                break
+    return [BCNF,problematics]
+
+
 
 def testAllBCNF():
     names = list(set(cur.execute("SELECT table_name FROM FuncDep")))
     for name in names:
         ltr = list(cur.execute(f"SELECT lhs,rhs FROM FuncDep WHERE table_name = '{name[0]}'"))
         dfs = mergeDFS(ltr)
-        dfs = trueDependences(dfs)
+        tds = trueDependences(dfs)
         print(name[0])
-        isBCNF(dfs,name[0])
+        x = isBCNF(tds,name[0])
+        if x[0]:
+            print("BCNF RESPECTED")
+        else:
+            for element in x[1]:
+                print(str(element) + "| Tuple Problematic")
+#Section 3NF
 
+def rightNotInLeft(array):
+    newArray = []
+    for element in array:
+        lhs = element[0].split(" ")
+        rhs = element[1].split(" ")
+        trueRhs = [x for x in rhs if x not in lhs]
+        newArray.append(" ".join(trueRhs))
+    return newArray
+
+def is3NF(table_name): 
+    ltr = list(cur.execute(f"SELECT lhs,rhs FROM FuncDep WHERE table_name = '{table_name}'"))
+    dfs = mergeDFS(ltr)
+    
+    tdfs = trueDependences(dfs)
+    b = isBCNF(tdfs,table_name)
+    r = rightNotInLeft(dfs)
+    keys = str(getKeys(table_name)).replace(","," ")
+    if(b[0]): 
+        return [True,b,r]
+    notIn = []
+    for element in r:
+        if not stringContain(element, keys):
+            notIn.append(element)
+    if notIn != []:
+        bn = [False,[]]
+        for element in b[1]:
+            if not stringContain(element[1],keys):
+                bn[1].append(element)
+        return [False,bn,notIn]
+    return [True,b,r]
+
+def testAll3NF(): 
+    names = list(set(cur.execute("SELECT table_name FROM FuncDep")))
+    for name in names:
+        ltr = list(cur.execute(f"SELECT lhs,rhs FROM FuncDep WHERE table_name = '{name[0]}'"))
+        print(name[0])
+        x = is3NF(name[0])
+        if x[0]:
+            print("3NF RESPECTED")
+        else:             
+           print(str(x[1][1]) + "| Tuples Problematic")
+           print(str(x[2])+ "| Not in Keys")
+             
 def listDF():
     listDf = list(cur.execute("SELECT lhs,rhs,table_name FROM FuncDep"))
     for df in listDf:
@@ -401,5 +459,6 @@ while -1:
               ["Vérifier les conséquences logiques de chaque table",verifyAllConsequences],
               ["Verifier si chaque table est en BCNF",testAllBCNF],
               ["Afficher les clés de chaque table (ayant des DFs)",getAllKeys],
+              ["Verifier si chaque table est en 3NF",testAll3NF],
               ["Quitter",quit]
               ],)
