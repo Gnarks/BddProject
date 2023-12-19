@@ -73,13 +73,13 @@ def computeAtts(attributes,dfScheme):
 def fermeture(dfWanted,dfs):
     NotUsed = dfs.copy()
     NUComparator = []
-    fermeture = [dfWanted[0]]
+    fermeture = dfWanted[0]
     while NotUsed != NUComparator:
-        NUComparator = NotUsed
+        NUComparator = NotUsed.copy()
         for i in NotUsed:
-            if i[0] in fermeture:
-                NUComparator = NUComparator.remove(i)
-                fermeture.append(i[1])
+            if len([x for x in i[0].split(" ") if x not in fermeture]) == 0:
+                NotUsed.remove(i)
+                fermeture = fermeture + " " + i[1]
     return fermeture
 
 def verifyConsequences(table_name):
@@ -95,7 +95,7 @@ def verifyConsequences(table_name):
         else:
             dfs = ltr[:i]
         ferm = fermeture(dfWanted,dfs)
-        if(dfWanted[1] in ferm):
+        if len([x for x in dfWanted[1].split(" ") if x not in ferm]) == 0:
             listConsequences.append(dfWanted)
     return listConsequences
 
@@ -107,6 +107,9 @@ def verifyAllConsequences():
         csq = verifyConsequences(name[0])
         for element in csq:
             print(str(element) + "| Conséquence logique!")
+
+        if len(csq) == 0:
+            print("Pas de conséquances logiques")
 
 
 #Section BCNF
