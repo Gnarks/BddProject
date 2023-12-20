@@ -3,7 +3,7 @@ import os
 from itertools import chain,combinations
 
 global cur,DbName,con
-DbName = "" #"testBordel.db" #TODO supprimer avant de rendre
+DbName = "test.db" #TODO supprimer avant de rendre
 #DbName="" remettre ça
 
 
@@ -86,13 +86,12 @@ def verifyAllDFs():
         verifyTablesDNF(name[0])
         
         print(f"Pour : {name[0]}")
-        """
         for cons in verifyConsequences(name[0]):
             print(f"Conséquence logique :{cons[0].replace(" ",",")} -> {cons[1]}")
             if input("Voulez vous la supprimer ? (y/n):") == "y":
                 cur.execute(f"delete from FuncDep where table_name = '{name[0]}' and lhs = '{cons[0]}' and rhs ='{cons[1]}' ")
                 con.commit()
-            """
+            
 
 
 ''' Section Logic Consequences'''
@@ -205,6 +204,7 @@ def testAllBCNF():
                 problems = list(set(cur.execute(f"SELECT lhs,rhs FROM FuncDep WHERE lhs = '{element[0]}'")))
                 for pb in problems:
                     print(str(pb) + "| Tuple Problematique")
+                    
 #Section 3NF
 
 def rightNotInLeft(array):
@@ -246,10 +246,11 @@ def testAll3NF():
         if x[0]:
             print("3NF RESPECTÉ")
         else:
+            print(x)
             for element in x[1][1]:
                 problems = list(set(cur.execute(f"SELECT lhs,rhs FROM FuncDep WHERE lhs = '{element[0]}'")))
                 for pb in problems:
-                    print(str(pb) + "| Tuple Problematique")
+                    print(str(pb) + "| DF Problematique")
 
 
 
@@ -518,12 +519,13 @@ def getKeys(tableName):
         actual = subArr[0]
         subArr.remove(subArr[0])
         actualComputed = computeAtts(actual,ltr)
-    
+        toKeep =[]
         if len([x for x in attributes if x not in actualComputed]) == 0:
             final.append(actual)
             for y in subArr:
-                if len([x for x in actual if x not in y]) == 0:
-                    subArr.remove(y)
+                if len([x for x in actual if x not in y]) != 0:
+                    toKeep.append(y)
+            subArr = toKeep.copy()
     
     for j in range(len(final)):
         final[j] = ",".join(final[j])
