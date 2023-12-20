@@ -203,7 +203,7 @@ def testAllBCNF():
             for element in x[1]:
                 problems = list(set(cur.execute(f"SELECT lhs,rhs FROM FuncDep WHERE lhs = '{element[0]}'")))
                 for pb in problems:
-                    print(str(pb) + "| Tuple Problematique")
+                    print(str(pb[0]) + " -> " + str(pb[1]) + "| DF Problematique")
                     
 #Section 3NF
 
@@ -229,13 +229,13 @@ def is3NF(table_name):
     notIn = []
     for element in r:
         if len([x for x in element.split(" ") if x not in keys]) != 0:
-            notIn.append(element)
+            notIn.extend([x for x in element.split(" ")])
     if notIn != []:
         bn = [False,[]]
         for element in b[1]:
             if len([x for x in element[1].split(" ") if x not in keys]) != 0:
                 bn[1].append(element)
-        return [False,bn,notIn]
+        return [False,bn,list(set(notIn))]
     return [True,b,r]
 
 def testAll3NF(): 
@@ -246,11 +246,12 @@ def testAll3NF():
         if x[0]:
             print("3NF RESPECTÉ")
         else:
-            print(x)
             for element in x[1][1]:
                 problems = list(set(cur.execute(f"SELECT lhs,rhs FROM FuncDep WHERE lhs = '{element[0]}'")))
                 for pb in problems:
-                    print(str(pb) + "| DF Problematique")
+                    if pb[1] in x[2]:
+                        print(str(pb[0]) + " -> " + str(pb[1]) + "| DF Problematique")
+                        print(str([y for y in x[2] if y in pb[1]]) + "| Dans aucune clef")
 
 
 
