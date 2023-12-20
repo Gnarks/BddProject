@@ -72,16 +72,14 @@ def computeAtts(attributes,dfScheme):
 
 def fermeture(dfWanted,dfs):
     NotUsed = dfs.copy()
-    print(NotUsed)
     NUComparator = []
-    fermeture = [dfWanted[0].split(" ")]
-    print(fermeture)
+    fermeture = dfWanted[0]
     while NotUsed != NUComparator:
-        NUComparator= NotUsed.copy()
+        NUComparator = NotUsed.copy()
         for i in NotUsed:
-            if stringContain(i[0], fermeture):
-                NUComparator = [x for x in NUComparator if x not in fermeture]
-                fermeture.append(i[1].split(" "))
+            if len([x for x in i[0].split(" ") if x not in fermeture]) == 0:
+                NotUsed.remove(i)
+                fermeture = fermeture + " " + i[1]
     return fermeture
 
 def verifyConsequences(table_name):
@@ -97,7 +95,7 @@ def verifyConsequences(table_name):
         else:
             dfs = ltr[:i]
         ferm = fermeture(dfWanted,dfs)
-        if(dfWanted[1] in ferm):
+        if len([x for x in dfWanted[1].split(" ") if x not in ferm]) == 0:
             listConsequences.append(dfWanted)
     return listConsequences
 
@@ -180,10 +178,12 @@ def testAllBCNF():
         print(name[0])
         x = isBCNF(tds,name[0])
         if x[0]:
-            print("BCNF RESPECTED")
+            print("BCNF RESPECTÉ")
         else:
             for element in x[1]:
-                print(str(element) + "| Tuple Problematic")
+                problems = list(set(cur.execute(f"SELECT lhs,rhs FROM FuncDep WHERE lhs = '{element[0]}'")))
+                for pb in problems:
+                    print(str(pb) + "| Tuple Problematique")
 #Section 3NF
 
 def rightNotInLeft(array):
@@ -220,15 +220,16 @@ def is3NF(table_name):
 def testAll3NF(): 
     names = list(set(cur.execute("SELECT table_name FROM FuncDep")))
     for name in names:
-        ltr = list(cur.execute(f"SELECT lhs,rhs FROM FuncDep WHERE table_name = '{name[0]}'"))
         print(name[0])
         x = is3NF(name[0])
         if x[0]:
-            print("3NF RESPECTED")
-        else:             
-           print(str(x[1][1]) + "| Tuples Problematic")
-           print(str(x[2])+ "| Not in Keys")
-             
+            print("3NF RESPECTÉ")
+        else:
+            for element in x[1][1]:
+                problems = list(set(cur.execute(f"SELECT lhs,rhs FROM FuncDep WHERE lhs = '{element[0]}'")))
+                for pb in problems:
+                    print(str(pb) + "| Tuple Problematique")
+
 def listDF():
     listDf = list(cur.execute("SELECT lhs,rhs,table_name FROM FuncDep"))
     for df in listDf:
