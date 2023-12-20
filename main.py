@@ -3,7 +3,7 @@ import os
 from itertools import chain,combinations
 
 global cur,DbName,con
-DbName = "test.db" #TODO supprimer avant de rendre
+DbName = "testBordel.db" #TODO supprimer avant de rendre
 #DbName="" remettre ça
 
 
@@ -25,31 +25,76 @@ def printChoices(choices):
 def getLhs_RowAndRhs_Row(row):
     return (row[:-1], row[-1])
 
+
+
+
 def verifyTablesDNF(table_name):
+    tables = list(map(lambda x: x[0], cur.execute("SELECT name FROM sqlite_master WHERE type='table'")))
+    
+    if table_name not in tables:
+        print(f"La table {table_name} n'existe pas suppression automatique de son apparence dans FuncDep")
+        cur.execute(f"delete from FuncDep where table_name = '{table_name}'")
+        con.commit()
+        return
 
     ltr = list(cur.execute(f"SELECT lhs,rhs FROM FuncDep WHERE table_name = '{table_name}'"))
-
-    listNotDfs = []
     for df in ltr:
-        listProblematics = []
+        attList = list(map(lambda x: x[0], cur.execute(f'select * from {table_name}').description))
+
+        if len([x for x in df[0].split(" ") if x not in attList]) >0 or len([x for x in df[1].split(" ") if x not in attList]) > 0:
+            print(f"un des attributs de la DF ({df[0].replace(" ",",")} -> {df[1].replace(" ",",")}) n'appartient pas à la liste d'attributs de la table {table_name}")
+            print(f"suppression de la dépence fonctionnelle {df[0].replace(" ",",")} -> {df[1].replace(" ",",")}")
+            cur.execute(f"delete from FuncDep where table_name = '{table_name}' and lhs = '{df[0]}' and rhs ='{df[1]}'")
+            con.commit()
+            continue
+        
+        #TODO d'abord vérifier si l'attribut de la DF appartient à la table
+        #TODO vérifier si la DF n'est pas une copie d'une autre avec les conséquences logiques doit attendre le push de willy
+        
+        if  len(df[1].split(" ")) > 1:
+            print(f"La DF {df[0].replace(" ",",")} -> {df[1].replace(" ",",")} n'est pas singulière, suppression automatique.")
+            cur.execute(f"delete from FuncDep where table_name = '{table_name}' and lhs = '{df[0]}' and rhs ='{df[1]}'")
+
+            if  input("Voulez vous l'ajouter de manière singulière ? (y/n):") == "y":
+                for uniqueRhs in df[1].split():
+                    cur.execute(f"insert into FuncDep(table_name,lhs,rhs) values ('{table_name}','{df[0]}','{uniqueRhs}')")      
+            con.commit()
+            continue
         (lhs,rhs) = (df[0].replace(" ",","),df[1])
         
         d = cur.execute(f"SELECT {lhs},{rhs} FROM {table_name}")
         dicoLtr = {}
         for row in d:
+            
             row_lhs,row_rhs = getLhs_RowAndRhs_Row(row)
             
             if(row_lhs in list(dicoLtr.keys())):
                 if row_rhs != dicoLtr[row_lhs]:
-                    listNotDfs.append([df])
-                    listProblematics.append(row)
+                    print(str(row) + " | Tuple problématique! ")
+                    print(f"la DF suivante : {df[0].replace(" ",",")} -> {df[1]} est problématique")
+                    if input("Voulez vous supprimer la DF qui pose problème pour ce tuple ? (y/n): ") == "y":
+                        cur.execute(f"delete from FuncDep where table_name = '{table_name}' and lhs = '{df[0]}' and rhs ='{df[1]}'")
+                        con.commit()
+                    
             else:
                 dicoLtr[row_lhs] = row_rhs
-        if len(listProblematics) > 0:
-            toAdd = listProblematics[0][:-1] + (dicoLtr[listProblematics[0][:-1]],)
-            listProblematics.insert(0,toAdd)
-            listNotDfs[-1].append(listProblematics)
-    return listNotDfs
+            
+
+def verifyAllDFs():
+    names = list(set(cur.execute("SELECT table_name FROM FuncDep")))
+    for name in names:
+        verifyTablesDNF(name[0])
+        
+        print(f"Pour : {name[0]}")
+        """
+        for cons in verifyConsequences(name[0]):
+            print(f"Conséquence logique :{cons[0].replace(" ",",")} -> {cons[1]}")
+            if input("Voulez vous la supprimer ? (y/n):") == "y":
+                cur.execute(f"delete from FuncDep where table_name = '{name[0]}' and lhs = '{cons[0]}' and rhs ='{cons[1]}' ")
+                con.commit()
+            """
+            
+        
 
 def verifyAllDFs():
     names = list(set(cur.execute("SELECT table_name FROM FuncDep")))
@@ -506,6 +551,8 @@ def printStartInterface():
     if DbName !="":
         con = sqlite3.connect(f"DB/{DbName}")
         cur = con.cursor()
+        verifyAllDFs()
+
         return
     
     print("\n") 
@@ -518,7 +565,8 @@ def connectDb():
     DbName = input("nom de la Db (dans le répertoire DB):")
 
     while not os.path.isfile(f"DB/{DbName}"):
-        print(f"Le fichier \"DB/{DbName}\" n'existe pas veuillez réessayer.")
+        print(f"Le fichier \"DB/{DbName}\" n'existe pas veuillez réessayer : ")
+        DbName = input()
         
     con= sqlite3.connect(f"DB/{DbName}")
     cur = con.cursor()
@@ -526,6 +574,9 @@ def connectDb():
     if ("FuncDep",) not in list(cur.execute("SELECT name FROM sqlite_master WHERE type='table'")):
         print("Il fut remarqué que FuncDep n'existe pas pour cette Database nous l'ajoutons.")
         cur.execute("create table FuncDep ('table_name','lhs','rhs')")
+        
+    verifyAllDFs()
+
         
         
 printStartInterface()
