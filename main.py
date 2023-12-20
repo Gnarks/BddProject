@@ -3,7 +3,7 @@ import os
 from itertools import chain,combinations
 
 global cur,DbName,con
-DbName = "testBordel.db" #TODO supprimer avant de rendre
+DbName = "" #"testBordel.db" #TODO supprimer avant de rendre
 #DbName="" remettre ça
 
 
@@ -93,21 +93,6 @@ def verifyAllDFs():
                 cur.execute(f"delete from FuncDep where table_name = '{name[0]}' and lhs = '{cons[0]}' and rhs ='{cons[1]}' ")
                 con.commit()
             """
-            
-        
-
-def verifyAllDFs():
-    names = list(set(cur.execute("SELECT table_name FROM FuncDep")))
-    for name in names:
-        print(name[0])
-        listProblems = verifyTablesDNF(name[0])
-        if len(listProblems) == 0:
-            print("Toutes les DFs sont respectées")
-        else:
-            for element in listProblems:
-                print(element[0][0] +" -> " + element[0][1]+" |Non respectée")
-                for tupleProb in element[1]:
-                    print(str(tupleProb) + "| Problématique")  
 
 
 ''' Section Logic Consequences'''
