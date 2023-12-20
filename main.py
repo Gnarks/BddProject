@@ -20,6 +20,8 @@ def printChoices(choices):
     os.system( "clear" if os.name == "posix"  else "cls")
     choices[int(choice)][1]()
 
+
+'''SECTION VERIFIER DFS'''
 def getLhs_RowAndRhs_Row(row):
     return (row[:-1], row[-1])
 
@@ -27,48 +29,43 @@ def verifyTablesDNF(table_name):
 
     ltr = list(cur.execute(f"SELECT lhs,rhs FROM FuncDep WHERE table_name = '{table_name}'"))
 
-    
+    listNotDfs = []
     for df in ltr:
-
-        print(f"For {str(df)}: ")
-        okValue = True 
+        listProblematics = []
         (lhs,rhs) = (df[0].replace(" ",","),df[1])
         
         d = cur.execute(f"SELECT {lhs},{rhs} FROM {table_name}")
         dicoLtr = {}
         for row in d:
-    
             row_lhs,row_rhs = getLhs_RowAndRhs_Row(row)
             
             if(row_lhs in list(dicoLtr.keys())):
                 if row_rhs != dicoLtr[row_lhs]:
-                    print(str(row) + " | Tuple problématique! ")
-                    okValue = False
+                    listNotDfs.append([df])
+                    listProblematics.append(row)
             else:
                 dicoLtr[row_lhs] = row_rhs
-        if okValue:
-            print("DF respectée")
+        if len(listProblematics) > 0:
+            toAdd = listProblematics[0][:-1] + (dicoLtr[listProblematics[0][:-1]],)
+            listProblematics.insert(0,toAdd)
+            listNotDfs[-1].append(listProblematics)
+    return listNotDfs
 
-# Section Logic Consequences
+def verifyAllDFs():
+    names = list(set(cur.execute("SELECT table_name FROM FuncDep")))
+    for name in names:
+        print(name[0])
+        listProblems = verifyTablesDNF(name[0])
+        if len(listProblems) == 0:
+            print("Toutes les DFs sont respectées")
+        else:
+            for element in listProblems:
+                print(element[0][0] +" -> " + element[0][1]+" |Non respectée")
+                for tupleProb in element[1]:
+                    print(str(tupleProb) + "| Problématique")  
 
-def getAllLhs(dfArray):
-    lhs=[]
-    for i in dfArray:
-        lhs.append(i[0])
-    return lhs
 
-def computeAtts(attributes,dfScheme):
-    total = attributes.copy()
-    dfSchemeFunc = dfScheme.copy() 
-    asChanged = True    
-    while asChanged:
-        asChanged= False
-        for df in dfSchemeFunc:
-            if len([x for x in df[0].split(" ") if x not in total]) ==0:
-                asChanged = True
-                total.append(df[1])
-                dfSchemeFunc.remove(df)
-    return total
+''' Section Logic Consequences'''
 
 def fermeture(dfWanted,dfs):
     NotUsed = dfs.copy()
@@ -82,19 +79,16 @@ def fermeture(dfWanted,dfs):
                 fermeture = fermeture + " " + i[1]
     return fermeture
 
-def verifyConsequences(table_name):
 
+def verifyConsequences(table_name):
     ltr = list(cur.execute(f"SELECT lhs,rhs FROM FuncDep WHERE table_name = '{table_name}'"))
     listConsequences = []
     for i in range(len(ltr)):
+        
         dfWanted = ltr[i]
-        if i in range(1,len(ltr)):
-            dfs = ltr[:i] + ltr[i+1:]
-        elif(i == 0):
-            dfs = ltr[i+1:]
-        else:
-            dfs = ltr[:i]
+        dfs = [x for x in ltr if x != ltr[i]]
         ferm = fermeture(dfWanted,dfs)
+
         if len([x for x in dfWanted[1].split(" ") if x not in ferm]) == 0:
             listConsequences.append(dfWanted)
     return listConsequences
@@ -109,16 +103,10 @@ def verifyAllConsequences():
             print(str(element) + "| Conséquence logique!")
 
         if len(csq) == 0:
-            print("Pas de conséquances logiques")
+            print("Pas de conséquences logiques")
 
 
-#Section BCNF
-def stringContain(isIn, contain):
-    listIsIn = isIn.split(" ")
-    for element in listIsIn:
-        if element not in contain:
-            return False
-    return True
+'''Section BCNF'''
 
 def addNotIn(toAdd, addedlhs, addedrhs):
     listToAdd = toAdd.split(" ")
@@ -151,7 +139,7 @@ def trueDependences(array):
         while asChanged:
             asChanged = False
             for dfComp in array:
-                if (df!=dfComp) and (stringContain(dfComp[0],str(Tdfs[-1]))):
+                if (df!=dfComp) and (len([x for x in dfComp[0].split(" ") if x not in str(Tdfs[-1])])==0):
                     toAdd = (Tdfs[-1][0], addNotIn(dfComp[1],Tdfs[-1][0],Tdfs[-1][1]))
                     if toAdd != Tdfs[-1]:
                         Tdfs[-1] = toAdd
@@ -210,12 +198,12 @@ def is3NF(table_name):
         return [True,b,r]
     notIn = []
     for element in r:
-        if not stringContain(element, keys):
+        if len([x for x in element.split(" ") if x not in keys]) != 0:
             notIn.append(element)
     if notIn != []:
         bn = [False,[]]
         for element in b[1]:
-            if not stringContain(element[1],keys):
+            if len([x for x in element[1].split(" ") if x not in keys]) != 0:
                 bn[1].append(element)
         return [False,bn,notIn]
     return [True,b,r]
@@ -233,6 +221,9 @@ def testAll3NF():
                 for pb in problems:
                     print(str(pb) + "| Tuple Problematique")
 
+
+
+'''Section Affichage'''
 def listDF():
     listDf = list(cur.execute("SELECT lhs,rhs,table_name FROM FuncDep"))
     for df in listDf:
@@ -439,6 +430,20 @@ def modifyDF():
         deleteDF()
 
 
+def computeAtts(attributes,dfScheme):
+    total = attributes.copy()
+    dfSchemeFunc = dfScheme.copy() 
+    asChanged = True    
+    while asChanged:
+        asChanged= False
+        for df in dfSchemeFunc:
+            if len([x for x in df[0].split(" ") if x not in total]) ==0:
+                asChanged = True
+                total.append(df[1])
+                dfSchemeFunc.remove(df)
+    return total
+
+
 def getAllKeys():
     names = list(set(cur.execute("select table_name from FuncDep")))
     for name in names:
@@ -494,11 +499,6 @@ def getKeys(tableName):
         final[j] = ",".join(final[j])
     return final
 
-def verifyAllDFs():
-    names = list(set(cur.execute("SELECT table_name FROM FuncDep")))
-    for name in names:
-        print(name[0])
-        verifyTablesDNF(name[0])
 
 
 def printStartInterface():
