@@ -3,6 +3,7 @@
 ## Pré-requis
 
 Afin d'utiliser des bases de données, veuillez les placer dans le dossier DB.
+De plus il vous est demandé d'executer le fichier main.py depuis le répertoire MAXIME_BARTHA-WILLIAM_KARPINSKI.
 
 Il est requis d'avoir les dépendances suivantes : sqlite3, os,itertools (normalement installées par défaut)
 ## Options de l'utilisateur
