@@ -36,7 +36,7 @@ def verifyTablesDNF(table_name):
         cur.execute(f"delete from FuncDep where table_name = '{table_name}'")
         con.commit()
         return
-
+    dfList = []
     ltr = list(cur.execute(f"SELECT lhs,rhs FROM FuncDep WHERE table_name = '{table_name}'"))
     for df in ltr:
         attList = list(map(lambda x: x[0], cur.execute(f'select * from {table_name}').description))
@@ -47,10 +47,7 @@ def verifyTablesDNF(table_name):
             cur.execute(f"delete from FuncDep where table_name = '{table_name}' and lhs = '{df[0]}' and rhs ='{df[1]}'")
             con.commit()
             continue
-        
-        #TODO d'abord vérifier si l'attribut de la DF appartient à la table
-        #TODO vérifier si la DF n'est pas une copie d'une autre avec les conséquences logiques doit attendre le push de willy
-        
+                
         if  len(df[1].split(" ")) > 1:
             print(f"La DF {df[0].replace(" ",",")} -> {df[1].replace(" ",",")} n'est pas singulière, suppression automatique.")
             cur.execute(f"delete from FuncDep where table_name = '{table_name}' and lhs = '{df[0]}' and rhs ='{df[1]}'")
@@ -70,27 +67,54 @@ def verifyTablesDNF(table_name):
             
             if(row_lhs in list(dicoLtr.keys())):
                 if row_rhs != dicoLtr[row_lhs]:
-                    print(str(row) + " | Tuple problématique! ")
-                    print(f"la DF suivante : {df[0].replace(" ",",")} -> {df[1]} est problématique")
-                    if input("Voulez vous supprimer la DF qui pose problème pour ce tuple ? (y/n): ") == "y":
-                        cur.execute(f"delete from FuncDep where table_name = '{table_name}' and lhs = '{df[0]}' and rhs ='{df[1]}'")
-                        con.commit()
+                    if df not in dfList:
+                        dfList.append(df)
                     
             else:
                 dicoLtr[row_lhs] = row_rhs
+                
+    return dfList
             
 
 def verifyAllDFs():
     names = list(set(cur.execute("SELECT table_name FROM FuncDep")))
+    print("0) retourner au menu principal")
+    i = 1
+    allPrbls =[]
     for name in names:
-        verifyTablesDNF(name[0])
-        
-        print(f"Pour : {name[0]}")
-        for cons in verifyConsequences(name[0]):
-            print(f"Conséquence logique :{cons[0].replace(" ",",")} -> {cons[1]}")
-            if input("Voulez vous la supprimer ? (y/n):") == "y":
-                cur.execute(f"delete from FuncDep where table_name = '{name[0]}' and lhs = '{cons[0]}' and rhs ='{cons[1]}' ")
-                con.commit()
+        print(f"pour la table {name[0]} : ")
+        prbls = verifyTablesDNF(name[0])
+        for element in prbls:
+            print(f"{i}) {element[0].replace(" ",",")} -> {element[1].replace(" ",",")} | DF problématique !")
+            allPrbls.append((name[0],element[0],element[1]))
+            i+=1
+
+        if len(prbls) == 0:
+            print("Pas de DF problématique.")
+        print()
+    
+    if len(allPrbls) ==0 or input("Voulez vous supprimer une DF problématique ? (y/n) : ") != 'y':
+        return
+                
+    suppr = input("Entrez la DF à supprimer : ")
+    if suppr == "0":
+        os.system( "clear" if os.name == "posix"  else "cls")
+        return
+    
+    while not suppr.isdigit() or int(suppr) >= len(allPrbls) +1:
+        suppr = input("invalid entry please retry:")
+        if suppr == "0":
+            os.system( "clear" if os.name == "posix"  else "cls")
+            return
+    suppr = int(suppr)
+    cur.execute(f"delete from FuncDep where table_name = '{allPrbls[suppr-1][0]}' and lhs ='{allPrbls[suppr-1][1]}' and rhs ='{allPrbls[suppr-1][2]}'")
+    con.commit()
+
+    if input("continuer (y/n): ") == "y":
+        verifyAllDFs()
+    print()
+
+            
             
 
 
@@ -124,15 +148,40 @@ def verifyConsequences(table_name):
 
 def verifyAllConsequences():
     names = list(set(cur.execute("SELECT table_name FROM FuncDep")))
-    csq = []
+    allCsq = []
+    i = 1
+    print("0) retourner au menu principal")
+
     for name in names:
-        print(name[0])
+        print(f"pour la table {name[0]} : ")
         csq = verifyConsequences(name[0])
         for element in csq:
-            print(str(element) + "| Conséquence logique!")
+            print(f"{i}) {element[0].replace(" ",",")} -> {element[1].replace(" ",",")} | Conséquence logique!")
+            allCsq.append((name[0],element[0],element[1]))
+            i+=1
 
         if len(csq) == 0:
             print("Pas de conséquences logiques")
+    
+    if len(allCsq)==0 or  input("Voulez vous supprimer une conséquence logique ? (y/n) : ") != 'y':
+        return
+                
+    suppr = input("Entrez la DF à supprimer : ")
+    if suppr == "0":
+        os.system( "clear" if os.name == "posix"  else "cls")
+        return
+    
+    while not suppr.isdigit() or int(suppr) >= len(allCsq) +1:
+        suppr = input("invalid entry please retry:")
+        if suppr == "0":
+            os.system( "clear" if os.name == "posix"  else "cls")
+            return
+    suppr = int(suppr)
+    cur.execute(f"delete from FuncDep where table_name = '{allCsq[suppr-1][0]}' and lhs ='{allCsq[suppr-1][1]}' and rhs ='{allCsq[suppr-1][2]}'")
+    con.commit()
+
+    if input("continuer (y/n): ") == "y":
+        verifyAllConsequences()
 
 
 '''Section BCNF'''
@@ -250,8 +299,8 @@ def testAll3NF():
                 problems = list(set(cur.execute(f"SELECT lhs,rhs FROM FuncDep WHERE lhs = '{element[0]}'")))
                 for pb in problems:
                     if pb[1] in x[2]:
-                        print(str(pb[0]) + " -> " + str(pb[1]) + "| DF Problematique")
-                        print(str([y for y in x[2] if y in pb[1]]) + "| Dans aucune clef")
+                        print(str(pb[0]) + " -> " + str(pb[1]) + "  | DF Problematique.")
+                        print([y for y in x[2] if y in pb[1]][0] + "  | n'est dans aucune clef.")
 
 
 
