@@ -3,8 +3,7 @@ import os
 from itertools import chain,combinations
 
 global cur,DbName,con
-DbName = "test.db" #TODO supprimer avant de rendre
-#DbName="" remettre ça
+DbName=""
 
 
 def printChoices(choices):
@@ -25,8 +24,36 @@ def printChoices(choices):
 def getLhs_RowAndRhs_Row(row):
     return (row[:-1], row[-1])
 
+def MakeTableGood(table_name):
+    tables = list(map(lambda x: x[0], cur.execute("SELECT name FROM sqlite_master WHERE type='table'")))
+    
+    if table_name not in tables:
+        print(f"La table {table_name} n'existe pas suppression automatique de son apparence dans FuncDep")
+        cur.execute(f"delete from FuncDep where table_name = '{table_name}'")
+        con.commit()
+        return
+    dfList = []
+    ltr = list(cur.execute(f"SELECT lhs,rhs FROM FuncDep WHERE table_name = '{table_name}'"))
+    for df in ltr:
+        attList = list(map(lambda x: x[0], cur.execute(f'select * from {table_name}').description))
 
+        if len([x for x in df[0].split(" ") if x not in attList]) >0 or len([x for x in df[1].split(" ") if x not in attList]) > 0:
+            print(f"un des attributs de la DF ({df[0].replace(" ",",")} -> {df[1].replace(" ",",")}) n'appartient pas à la liste d'attributs de la table {table_name}")
+            print(f"suppression de la dépence fonctionnelle {df[0].replace(" ",",")} -> {df[1].replace(" ",",")}")
+            cur.execute(f"delete from FuncDep where table_name = '{table_name}' and lhs = '{df[0]}' and rhs ='{df[1]}'")
+            con.commit()
+            continue
+                
+        if  len(df[1].split(" ")) > 1:
+            print(f"La DF {df[0].replace(" ",",")} -> {df[1].replace(" ",",")} n'est pas singulière, suppression automatique.")
+            cur.execute(f"delete from FuncDep where table_name = '{table_name}' and lhs = '{df[0]}' and rhs ='{df[1]}'")
 
+            if  input("Voulez vous l'ajouter de manière singulière ? (y/n):") == "y":
+                for uniqueRhs in df[1].split():
+                    cur.execute(f"insert into FuncDep(table_name,lhs,rhs) values ('{table_name}','{df[0]}','{uniqueRhs}')")      
+            con.commit()
+            continue
+        
 
 def verifyTablesDNF(table_name):
     tables = list(map(lambda x: x[0], cur.execute("SELECT name FROM sqlite_master WHERE type='table'")))
@@ -584,14 +611,6 @@ def getKeys(tableName):
 
 
 def printStartInterface():
-    global cur,con  # retirer avant de rendre
-    if DbName !="":
-        con = sqlite3.connect(f"DB/{DbName}")
-        cur = con.cursor()
-        verifyAllDFs()
-
-        return
-    
     print("\n") 
     print("Bienvenue dans notre Système de gestion des DFs de bases de données.")
     print("Veuillez fournir le nom de la table sur laquelle vous voulez travailler.")
@@ -611,8 +630,9 @@ def connectDb():
     if ("FuncDep",) not in list(cur.execute("SELECT name FROM sqlite_master WHERE type='table'")):
         print("Il fut remarqué que FuncDep n'existe pas pour cette Database nous l'ajoutons.")
         cur.execute("create table FuncDep ('table_name','lhs','rhs')")
-        
-    verifyAllDFs()
+
+    for table in  list(cur.execute("SELECT name FROM sqlite_master WHERE type='table'")):
+        MakeTableGood(table[0])
 
         
         
