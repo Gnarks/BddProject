@@ -36,7 +36,7 @@ Il est requis d'avoir les dépendances suivantes : sqlite3, os,itertools (normal
     L'utilisateur peut supprimer ces dernière au choix (Voir Options de l'utilisateur)
 
 - Vérifier les conséquences logiques
-    -Affiche les conséquences logiques par table    
+    - Affiche les conséquences logiques par table    
     L'utilisateur peut supprimer ces dernière au choix (Voir Options de l'utilisateur)
 
 

@@ -11,6 +11,9 @@ def printChoices(choices):
         print(f"{i}) {choices[i][0]}")
         
     choice = input()
+    for table in  list(cur.execute("SELECT name FROM sqlite_master WHERE type='table'")):
+        MakeTableGood(table[0])
+
     
     while not choice.isdigit() or int(choice) >= len(choices):
         choice = input("Entrée invalide veuillez réessayer:")
