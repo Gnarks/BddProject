@@ -12,9 +12,9 @@ Il est requis d'avoir les dépendances suivantes : sqlite3, os,itertools (normal
         'y' ou 'n' lorsque "(y/n) :" est demandé
     - soit :
         un des index affichés lorsqu'il est listé un choix du style :
-        - 1) choix1
-        - 2) choix2
-        - 3) choix3
+        - 1)choix1
+        - 2)choix2
+        - 3)choix3
 
 - De plus de manière générale lorsque vous tapez '0', l'utilisateur reviendra vers le menu principal (excepté lorsqu'il est demandé d'entrer le nom d'une DB)
 
