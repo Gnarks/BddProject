@@ -28,18 +28,17 @@ def MakeTableGood(table_name):
     tables = list(map(lambda x: x[0], cur.execute("SELECT name FROM sqlite_master WHERE type='table'")))
     
     if table_name not in tables:
-        print(f"La table {table_name} n'existe pas suppression automatique de son apparence dans FuncDep")
+        print(f"La table {table_name} n'existe pas, suppression automatique de son apparition dans FuncDep")
         cur.execute(f"delete from FuncDep where table_name = '{table_name}'")
         con.commit()
         return
-    dfList = []
     ltr = list(cur.execute(f"SELECT lhs,rhs FROM FuncDep WHERE table_name = '{table_name}'"))
     for df in ltr:
         attList = list(map(lambda x: x[0], cur.execute(f'select * from {table_name}').description))
 
         if len([x for x in df[0].split(" ") if x not in attList]) >0 or len([x for x in df[1].split(" ") if x not in attList]) > 0:
-            print(f"un des attributs de la DF ({df[0].replace(" ",",")} -> {df[1].replace(" ",",")}) n'appartient pas à la liste d'attributs de la table {table_name}")
-            print(f"suppression de la dépence fonctionnelle {df[0].replace(" ",",")} -> {df[1].replace(" ",",")}")
+            print(f"Un des attributs de la DF ({df[0].replace(" ",",")} -> {df[1].replace(" ",",")}) n'appartient pas à la liste d'attributs de la table {table_name}")
+            print(f"Suppression de la dépendance fonctionnelle {df[0].replace(" ",",")} -> {df[1].replace(" ",",")}")
             cur.execute(f"delete from FuncDep where table_name = '{table_name}' and lhs = '{df[0]}' and rhs ='{df[1]}'")
             con.commit()
             continue
@@ -56,34 +55,9 @@ def MakeTableGood(table_name):
         
 
 def verifyTablesDNF(table_name):
-    tables = list(map(lambda x: x[0], cur.execute("SELECT name FROM sqlite_master WHERE type='table'")))
-    
-    if table_name not in tables:
-        print(f"La table {table_name} n'existe pas suppression automatique de son apparence dans FuncDep")
-        cur.execute(f"delete from FuncDep where table_name = '{table_name}'")
-        con.commit()
-        return
     dfList = []
     ltr = list(cur.execute(f"SELECT lhs,rhs FROM FuncDep WHERE table_name = '{table_name}'"))
     for df in ltr:
-        attList = list(map(lambda x: x[0], cur.execute(f'select * from {table_name}').description))
-
-        if len([x for x in df[0].split(" ") if x not in attList]) >0 or len([x for x in df[1].split(" ") if x not in attList]) > 0:
-            print(f"un des attributs de la DF ({df[0].replace(" ",",")} -> {df[1].replace(" ",",")}) n'appartient pas à la liste d'attributs de la table {table_name}")
-            print(f"suppression de la dépence fonctionnelle {df[0].replace(" ",",")} -> {df[1].replace(" ",",")}")
-            cur.execute(f"delete from FuncDep where table_name = '{table_name}' and lhs = '{df[0]}' and rhs ='{df[1]}'")
-            con.commit()
-            continue
-                
-        if  len(df[1].split(" ")) > 1:
-            print(f"La DF {df[0].replace(" ",",")} -> {df[1].replace(" ",",")} n'est pas singulière, suppression automatique.")
-            cur.execute(f"delete from FuncDep where table_name = '{table_name}' and lhs = '{df[0]}' and rhs ='{df[1]}'")
-
-            if  input("Voulez vous l'ajouter de manière singulière ? (y/n):") == "y":
-                for uniqueRhs in df[1].split():
-                    cur.execute(f"insert into FuncDep(table_name,lhs,rhs) values ('{table_name}','{df[0]}','{uniqueRhs}')")      
-            con.commit()
-            continue
         (lhs,rhs) = (df[0].replace(" ",","),df[1])
         
         d = cur.execute(f"SELECT {lhs},{rhs} FROM {table_name}")
@@ -105,11 +79,12 @@ def verifyTablesDNF(table_name):
 
 def verifyAllDFs():
     names = list(set(cur.execute("SELECT table_name FROM FuncDep")))
-    print("0) retourner au menu principal")
+    print("0) Retourner au menu principal")
+    print()
     i = 1
     allPrbls =[]
     for name in names:
-        print(f"pour la table {name[0]} : ")
+        print(f"Pour la table {name[0]} : ")
         prbls = verifyTablesDNF(name[0])
         for element in prbls:
             print(f"{i}) {element[0].replace(" ",",")} -> {element[1].replace(" ",",")} | DF problématique !")
@@ -121,15 +96,16 @@ def verifyAllDFs():
         print()
     
     if len(allPrbls) ==0 or input("Voulez vous supprimer une DF problématique ? (y/n) : ") != 'y':
+        print()
         return
                 
-    suppr = input("Entrez la DF à supprimer : ")
+    suppr = input("Entrez l'index de la DF à supprimer : ")
     if suppr == "0":
         os.system( "clear" if os.name == "posix"  else "cls")
         return
     
     while not suppr.isdigit() or int(suppr) >= len(allPrbls) +1:
-        suppr = input("invalid entry please retry:")
+        suppr = input("Entrée invalide, veuillez réessayer :")
         if suppr == "0":
             os.system( "clear" if os.name == "posix"  else "cls")
             return
@@ -137,14 +113,10 @@ def verifyAllDFs():
     cur.execute(f"delete from FuncDep where table_name = '{allPrbls[suppr-1][0]}' and lhs ='{allPrbls[suppr-1][1]}' and rhs ='{allPrbls[suppr-1][2]}'")
     con.commit()
 
-    if input("continuer (y/n): ") == "y":
+    if input("Continuer? (y/n): ") == "y":
         verifyAllDFs()
     print()
-
             
-            
-
-
 ''' Section Logic Consequences'''
 
 def fermeture(dfWanted,dfs):
@@ -177,10 +149,10 @@ def verifyAllConsequences():
     names = list(set(cur.execute("SELECT table_name FROM FuncDep")))
     allCsq = []
     i = 1
-    print("0) retourner au menu principal")
+    print("0) Retourner au menu principal")
 
     for name in names:
-        print(f"pour la table {name[0]} : ")
+        print(f"Pour la table {name[0]} : ")
         csq = verifyConsequences(name[0])
         for element in csq:
             print(f"{i}) {element[0].replace(" ",",")} -> {element[1].replace(" ",",")} | Conséquence logique!")
@@ -191,6 +163,7 @@ def verifyAllConsequences():
             print("Pas de conséquences logiques")
     
     if len(allCsq)==0 or  input("Voulez vous supprimer une conséquence logique ? (y/n) : ") != 'y':
+        print()
         return
                 
     suppr = input("Entrez la DF à supprimer : ")
@@ -199,7 +172,7 @@ def verifyAllConsequences():
         return
     
     while not suppr.isdigit() or int(suppr) >= len(allCsq) +1:
-        suppr = input("invalid entry please retry:")
+        suppr = input("Entrée invalide, veuillez réessayer:")
         if suppr == "0":
             os.system( "clear" if os.name == "posix"  else "cls")
             return
@@ -207,7 +180,7 @@ def verifyAllConsequences():
     cur.execute(f"delete from FuncDep where table_name = '{allCsq[suppr-1][0]}' and lhs ='{allCsq[suppr-1][1]}' and rhs ='{allCsq[suppr-1][2]}'")
     con.commit()
 
-    if input("continuer (y/n): ") == "y":
+    if input("Continuer? (y/n): ") == "y":
         verifyAllConsequences()
 
 
@@ -279,9 +252,11 @@ def testAllBCNF():
             for element in x[1]:
                 problems = list(set(cur.execute(f"SELECT lhs,rhs FROM FuncDep WHERE lhs = '{element[0]}'")))
                 for pb in problems:
-                    print(str(pb[0]) + " -> " + str(pb[1]) + "| DF Problematique")
-                    
-#Section 3NF
+                    print(str(pb[0]) + " -> " + str(pb[1]) + "| DF Problematique")    
+        print()
+
+
+'''Section 3NF'''
 
 def rightNotInLeft(array):
     newArray = []
@@ -328,6 +303,7 @@ def testAll3NF():
                     if pb[1] in x[2]:
                         print(str(pb[0]) + " -> " + str(pb[1]) + "  | DF Problematique.")
                         print([y for y in x[2] if y in pb[1]][0] + "  | n'est dans aucune clef.")
+    print()
 
 
 
@@ -351,7 +327,7 @@ def notGoodInput(hand,table):
 def addDF():
     print("Voici les différentes tables :")
     tables = list(cur.execute("SELECT name FROM sqlite_master WHERE type='table'"))
-    print("0) retourner au menu principal")
+    print("0) Retourner au menu principal")
     tables = [x for x in tables if x[0] != "FuncDep"]
     for i in range(len(tables)):
         if tables[i][0] != "FuncDep":
@@ -364,7 +340,7 @@ def addDF():
         return
     
     while not table.isdigit() or int(table) >= len(tables) +1:
-        table = input("invalid entry please retry:")
+        table = input("Entrée invalide, veuillez réessayer:")
         if table == "0":
             os.system( "clear" if os.name == "posix"  else "cls")
             return
@@ -389,7 +365,7 @@ def addDF():
             os.system( "clear" if os.name == "posix"  else "cls")
             return
         
-    print("Veuillez désormais répéter ùle processus pour la main droite de la dépendance fonctionnelle.")
+    print("Veuillez désormais répéter le processus pour la main droite de la dépendance fonctionnelle.")
     print("Cependant veuillez entrer un attribut unique.")
     
     print("Entrez \"0\" pour retourner au menu principal")
@@ -414,7 +390,7 @@ def addDF():
 def deleteDF():
     print("Voici les différentes tables :")
     tables = list(cur.execute("SELECT name FROM sqlite_master WHERE type='table'"))
-    print("0) retourner au menu principal")
+    print("0) Retourner au menu principal")
     tables = [x for x in tables if x[0] != "FuncDep"]
     for i in range(len(tables)):
         if tables[i][0] != "FuncDep":
@@ -425,7 +401,7 @@ def deleteDF():
         os.system( "clear" if os.name == "posix"  else "cls")
         return
     while not table.isdigit() or int(table) >= len(tables) +1:
-        table = input("invalid entry please retry:")
+        table = input("Entrée invalide veuillez réessayer:")
         if table == "0":
             os.system( "clear" if os.name == "posix"  else "cls")
             return
@@ -434,7 +410,7 @@ def deleteDF():
 
     ltr = list(cur.execute(f"SELECT lhs,rhs FROM FuncDep WHERE table_name = '{table}'"))
     print("Voici les différentes dépendances fonctionnelles :")
-    print("0) retourner au menu principal")
+    print("0) Retourner au menu principal")
     for i in range(len(ltr)):
         print(f"{i+1}) {ltr[i][0].replace(" ",",")} --> {ltr[i][1]}")
     
@@ -452,7 +428,7 @@ def deleteDF():
     cur.execute(f"delete from FuncDep where table_name = '{table}' and  lhs = '{df[0]}' and rhs = '{df[1]}'")
     con.commit()
     
-    if input("continuer (y/n): ") == "y":
+    if input("Continuer? (y/n): ") == "y":
         deleteDF()
     
     
@@ -472,7 +448,7 @@ def modifyDF():
         os.system( "clear" if os.name == "posix"  else "cls")
         return
     while not table.isdigit() or int(table) >= len(tables) +1:
-        table = input("invalid entry please retry:")
+        table = input("Entrée invalide, veuillez réessayer:")
         if table == "0":
             os.system( "clear" if os.name == "posix"  else "cls")
             return
@@ -490,7 +466,7 @@ def modifyDF():
         os.system( "clear" if os.name == "posix"  else "cls")
         return
     while not df.isdigit() or int(df) >= len(ltr) +1:
-        df = input("invalid entry please retry:")
+        df = input("Entrée invalide, veuillez réessayer:")
         if df == "0":
             os.system( "clear" if os.name == "posix"  else "cls")
             return
@@ -515,7 +491,7 @@ def modifyDF():
             os.system( "clear" if os.name == "posix"  else "cls")
             return
         
-    print("Veuillez désormais répéter ùle processus pour la main droite de la dépendance fonctionnelle.")
+    print("Veuillez désormais répéter le processus pour la main droite de la dépendance fonctionnelle.")
     print("Cependant veuillez entrer un attribut unique.")
     
     print("Entrez \"0\" pour retourner au menu principal")
@@ -618,7 +594,7 @@ def printStartInterface():
     
 def connectDb():
     global cur, DbName,con
-    DbName = input("nom de la Db (dans le répertoire DB):")
+    DbName = input("Nom de la Db (dans le répertoire DB):")
 
     while not os.path.isfile(f"DB/{DbName}"):
         print(f"Le fichier \"DB/{DbName}\" n'existe pas veuillez réessayer : ")
@@ -642,8 +618,8 @@ while -1:
     printChoices([[f"Se connecter à une autre base de donnée que \"{DbName}\"", connectDb],
               ["Lister les dépendances fonctionnelles", listDF], 
               ["Ajouter une dépendance fonctionnelle", addDF],
-              ["supprimer une dépendance fonctionnelle", deleteDF],
-              ["modifier une dépendance fonctionnelle", modifyDF],
+              ["Supprimer une dépendance fonctionnelle", deleteDF],
+              ["Modifier une dépendance fonctionnelle", modifyDF],
               ["Vérifier les dépendances fonctionnelles de chaque table", verifyAllDFs],
               ["Vérifier les conséquences logiques de chaque table",verifyAllConsequences],
               ["Verifier si chaque table est en BCNF",testAllBCNF],
